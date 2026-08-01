@@ -58,7 +58,7 @@ const Toolbar = ({ editor }) => {
   if (!editor) return null;
 
   return (
-    <div style={{ padding: '0 16px 12px 16px', background: '#f9fbfd' }}>
+    <div style={{ padding: '0 16px 10px 16px', background: '#f9fbfd', borderBottom: '1px solid #e3e3e3' }}>
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 

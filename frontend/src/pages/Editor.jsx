@@ -23,10 +23,10 @@ const Editor = () => {
   const user = useAuthStore(state => state.user);
   const { documents, renameDocument, updateTimestamp } = useDocumentStore();
   const doc = documents.find(d => d.id === id);
-  
+
   const [status, setStatus] = useState('connecting');
   const [docTitle, setDocTitle] = useState(doc?.title || 'Untitled document');
-  
+
   const [ydoc] = useState(() => new Y.Doc());
   const [provider] = useState(() => new WebrtcProvider(
     `syncwrite-document-${id}`,
@@ -87,8 +87,8 @@ const Editor = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f9fbfd', fontFamily: '"Google Sans", Roboto, Arial, sans-serif' }}>
       {/* Header */}
-      <header style={{ 
-        display: 'flex', 
+      <header style={{
+        display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         padding: '8px 16px',
@@ -98,12 +98,12 @@ const Editor = () => {
         {/* Left Side: Icon + Title + Menu */}
         <div style={{ display: 'flex', gap: '4px' }}>
           {/* App Icon */}
-          <button 
-            className="btn-ghost" 
-            onClick={() => navigate('/dashboard')} 
+          <button
+            className="btn-ghost"
+            onClick={() => navigate('/dashboard')}
             style={{ padding: '8px', color: '#4285F4', background: 'transparent' }}
           >
-            <div style={{ 
+            <div style={{
               width: '36px', height: '40px', background: '#4285F4', borderRadius: '4px',
               display: 'flex', flexDirection: 'column', padding: '6px', gap: '3px'
             }}>
@@ -112,23 +112,23 @@ const Editor = () => {
               <div style={{ width: '100%', height: '3px', background: '#fff', borderRadius: '2px' }} />
             </div>
           </button>
-          
+
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', marginLeft: '4px' }}>
             {/* Title Row */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0' }}>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={docTitle}
                 onChange={(e) => setDocTitle(e.target.value)}
                 onBlur={(e) => {
                   renameDocument(id, e.target.value);
                   e.currentTarget.style.border = '1px solid transparent';
                 }}
-                style={{ 
-                  background: 'transparent', 
-                  border: '1px solid transparent', 
-                  color: '#1f1f1f', 
-                  fontSize: '1.1rem', 
+                style={{
+                  background: 'transparent',
+                  border: '1px solid transparent',
+                  color: '#1f1f1f',
+                  fontSize: '1.1rem',
                   padding: '1px 6px',
                   borderRadius: '4px',
                   outline: 'none',
@@ -143,17 +143,17 @@ const Editor = () => {
               <button style={{ background: 'transparent', border: 'none', padding: '4px', color: '#444746', cursor: 'pointer', display: 'flex' }}><Folder size={16} /></button>
               <button style={{ background: 'transparent', border: 'none', padding: '4px', color: '#444746', cursor: 'pointer', display: 'flex' }}><Cloud size={16} /></button>
             </div>
-            
+
             {/* Menu Row */}
             <div style={{ display: 'flex', gap: '2px', fontSize: '0.875rem', color: '#1f1f1f', marginLeft: '2px' }}>
               {['File', 'Edit', 'View', 'Insert', 'Format', 'Tools', 'Gemini', 'Extensions', 'Help'].map(menu => (
-                <button 
-                  key={menu} 
-                  style={{ 
-                    padding: '2px 7px', 
-                    borderRadius: '4px', 
-                    color: '#1f1f1f', 
-                    background: 'transparent', 
+                <button
+                  key={menu}
+                  style={{
+                    padding: '2px 7px',
+                    borderRadius: '4px',
+                    color: '#1f1f1f',
+                    background: 'transparent',
                     border: 'none',
                     cursor: 'pointer'
                   }}
@@ -169,14 +169,14 @@ const Editor = () => {
 
         {/* Right Side: Actions + Share + Avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
-          
+
           <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} title="Version History">
             <History size={22} />
           </button>
           <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} title="Comments">
             <MessageSquare size={22} />
           </button>
-          
+
           {/* Video call with dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', background: 'transparent', borderRadius: '24px', cursor: 'pointer' }}>
             <button style={{ background: 'transparent', border: 'none', padding: '8px 4px 8px 12px', color: '#444746', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
@@ -188,14 +188,14 @@ const Editor = () => {
           </div>
 
           {/* Share Button Group */}
-          <div style={{ 
-            display: 'flex', 
-            background: '#c2e7ff', 
-            borderRadius: '24px', 
+          <div style={{
+            display: 'flex',
+            background: '#c2e7ff',
+            borderRadius: '24px',
             height: '40px',
-            overflow: 'hidden' 
+            overflow: 'hidden'
           }}>
-            <button 
+            <button
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -218,15 +218,15 @@ const Editor = () => {
               <Lock size={16} />
               Share
             </button>
-            
+
             <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', height: '100%' }} />
-            
-            <button 
-              style={{ 
-                background: 'transparent', 
-                border: 'none', 
-                padding: '0 8px', 
-                color: '#001d35', 
+
+            <button
+              style={{
+                background: 'transparent',
+                border: 'none',
+                padding: '0 8px',
+                color: '#001d35',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center'
@@ -244,16 +244,16 @@ const Editor = () => {
           </button>
 
           {/* Avatar with colorful ring */}
-          <div style={{ 
-            marginLeft: '4px', 
-            width: '40px', 
-            height: '40px', 
-            borderRadius: '50%', 
-            background: '#a8c7fa', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            color: '#041e49', 
+          <div style={{
+            marginLeft: '4px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            background: '#a8c7fa',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#041e49',
             fontWeight: 'bold',
             border: '2px solid transparent',
             backgroundImage: 'linear-gradient(#f9fbfd, #f9fbfd), conic-gradient(from 0deg, #ea4335 0deg, #fbbc04 90deg, #34a853 180deg, #4285f4 270deg, #ea4335 360deg)',
@@ -270,7 +270,7 @@ const Editor = () => {
 
       {/* Editor Main Area */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        
+
         {/* Left Sidebar (Document tabs) */}
         <div style={{
           width: '280px',
@@ -281,18 +281,18 @@ const Editor = () => {
           flexShrink: 0
         }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', color: '#444746', cursor: 'pointer' }}>
-            <ArrowLeft size={18} />
+            <ArrowLeft size={20} />
           </div>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', color: '#1f1f1f', fontWeight: 500, fontSize: '0.85rem' }}>
             Document tabs
-            <Plus size={18} style={{ cursor: 'pointer', color: '#444746' }} />
+            <Plus size={20} style={{ cursor: 'pointer', color: '#444746' }} />
           </div>
 
           <div style={{
-            background: '#c2e7ff',
-            color: '#001d35',
-            padding: '10px 12px',
+            background: '#d3e3fd',
+            color: '#041e49',
+            padding: '8px 12px',
             borderRadius: '24px',
             display: 'flex',
             alignItems: 'center',
@@ -303,9 +303,9 @@ const Editor = () => {
             marginBottom: '16px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={16} color="#0a57d0" /> Tab 1
+              <FileText size={18} color="#0a57d0" /> Tab 1
             </div>
-            <MoreVertical size={16} color="#001d35" style={{ cursor: 'pointer' }} />
+            <MoreVertical size={18} color="#041e49" style={{ cursor: 'pointer' }} />
           </div>
 
           <div style={{ color: '#444746', fontSize: '0.85rem', fontStyle: 'italic', lineHeight: '1.5' }}>
@@ -315,24 +315,22 @@ const Editor = () => {
 
         {/* Main Content Area (Ruler + Paper) */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f9fbfd' }}>
-          
+
           {/* Mock Ruler */}
-          <div style={{ 
-            height: '24px', 
-            background: '#f9fbfd', 
-            borderBottom: '1px solid #e3e3e3',
+          <div style={{
+            height: '24px',
+            background: '#f9fbfd',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'flex-end',
-            flexShrink: 0
+            flexShrink: 0,
+            zIndex: 10
           }}>
             <div style={{
               width: '816px',
               height: '100%',
-              background: '#ffffff',
+              background: '#f9fbfd',
               position: 'relative',
-              borderLeft: '1px solid #e3e3e3',
-              borderRight: '1px solid #e3e3e3'
             }}>
               {/* Left blue triangle / marker */}
               <div style={{ position: 'absolute', left: '10%', top: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: 'translateX(-50%)' }}>
@@ -343,7 +341,7 @@ const Editor = () => {
               <div style={{ position: 'absolute', right: '10%', top: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: 'translateX(50%)' }}>
                 <div style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid #0a57d0' }} />
               </div>
-              
+
               {/* Tick marks */}
               <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 40px' }}>
                 {[1, 2, 3, 4, 5, 6, 7].map((num) => (
@@ -356,15 +354,15 @@ const Editor = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Paper Container */}
-          <div style={{ 
-            flex: 1, 
-            overflowY: 'auto', 
-            display: 'flex', 
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            padding: '12px 16px 80px 16px',
+            padding: '16px 16px 80px 16px',
             background: '#f9fbfd',
             position: 'relative'
           }}>
@@ -376,6 +374,7 @@ const Editor = () => {
               minHeight: '1056px',
               padding: '96px',
               boxShadow: '0 1px 3px 1px rgba(60,64,67,0.15)',
+              border: '1px solid #e3e3e3',
               color: '#000000',
               fontFamily: 'Arial, sans-serif'
             }}>
@@ -394,7 +393,7 @@ const Editor = () => {
             }}>
               {/* Suggestion Chips */}
               <div style={{ display: 'flex', gap: '8px' }}>
-                {[{icon: FileDown, text: 'Match doc format'}, {icon: LayoutTemplate, text: 'Templates'}, {icon: PenTool, text: 'Meeting notes'}, {icon: Mail, text: 'Email draft'}].map(chip => (
+                {[{ icon: FileDown, text: 'Match doc format' }, { icon: LayoutTemplate, text: 'Templates' }, { icon: PenTool, text: 'Meeting notes' }, { icon: Mail, text: 'Email draft' }].map(chip => (
                   <button key={chip.text} style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '6px 12px', background: '#f0f4f9', border: 'none',
@@ -424,9 +423,9 @@ const Editor = () => {
                 border: '1px solid #e3e3e3'
               }}>
                 <SparkleIcon size={20} color="#0a57d0" style={{ margin: '0 8px' }} />
-                <input 
-                  type="text" 
-                  placeholder="Create an outline for..." 
+                <input
+                  type="text"
+                  placeholder="Create an outline for..."
                   style={{ flex: 1, border: 'none', outline: 'none', fontSize: '0.95rem', color: '#1f1f1f', padding: '4px 8px' }}
                 />
                 <button style={{ background: '#f0f4f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}>
