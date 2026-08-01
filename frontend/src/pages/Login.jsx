@@ -10,24 +10,18 @@ const Login = () => {
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate API call for now (mocked backend for Phase 1)
-    setTimeout(() => {
-      // Mock user response
-      const mockUser = {
-        id: 'u1',
-        name: 'Demo User',
-        email: email,
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'
-      };
-      
-      login(mockUser, 'mock_jwt_token_123');
+    try {
+      await login(email, password);
       setIsLoading(false);
       navigate('/dashboard');
-    }, 1000);
+    } catch (err) {
+      setIsLoading(false);
+      alert('Login failed: ' + err.message);
+    }
   };
 
   return (
