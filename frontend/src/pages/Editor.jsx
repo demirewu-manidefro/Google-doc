@@ -277,22 +277,22 @@ const Editor = () => {
           background: '#f9fbfd',
           display: 'flex',
           flexDirection: 'column',
-          padding: '16px',
+          padding: '12px 16px',
           flexShrink: 0
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', color: '#444746', cursor: 'pointer' }}>
-            <ArrowLeft size={20} />
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', color: '#444746', cursor: 'pointer' }}>
+            <ArrowLeft size={18} />
           </div>
-          
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', color: '#1f1f1f', fontWeight: 500, fontSize: '0.85rem' }}>
             Document tabs
-            <Plus size={20} style={{ cursor: 'pointer', color: '#444746' }} />
+            <Plus size={18} style={{ cursor: 'pointer', color: '#444746' }} />
           </div>
 
           <div style={{
-            background: '#d3e3fd',
-            color: '#041e49',
-            padding: '8px 12px',
+            background: '#c2e7ff',
+            color: '#001d35',
+            padding: '10px 12px',
             borderRadius: '24px',
             display: 'flex',
             alignItems: 'center',
@@ -303,9 +303,9 @@ const Editor = () => {
             marginBottom: '16px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={18} color="#0a57d0" /> Tab 1
+              <FileText size={16} color="#0a57d0" /> Tab 1
             </div>
-            <MoreVertical size={18} color="#041e49" style={{ cursor: 'pointer' }} />
+            <MoreVertical size={16} color="#001d35" style={{ cursor: 'pointer' }} />
           </div>
 
           <div style={{ color: '#444746', fontSize: '0.85rem', fontStyle: 'italic', lineHeight: '1.5' }}>
@@ -329,7 +329,7 @@ const Editor = () => {
             <div style={{
               width: '816px',
               height: '100%',
-              background: '#f9fbfd',
+              background: '#ffffff',
               position: 'relative',
             }}>
               {/* Left blue triangle / marker */}
@@ -362,7 +362,7 @@ const Editor = () => {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            padding: '16px 16px 80px 16px',
+            padding: '0px 16px 80px 16px',
             background: '#f9fbfd',
             position: 'relative'
           }}>
@@ -374,7 +374,6 @@ const Editor = () => {
               minHeight: '1056px',
               padding: '96px',
               boxShadow: '0 1px 3px 1px rgba(60,64,67,0.15)',
-              border: '1px solid #e3e3e3',
               color: '#000000',
               fontFamily: 'Arial, sans-serif'
             }}>
