@@ -12,7 +12,7 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 import { useAuthStore } from '../store/authStore';
 import { useDocumentStore } from '../store/documentStore';
 import Toolbar from '../components/Toolbar';
-import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cloud, FileText, Lock, Video, Sparkles, ChevronDown, Plus, MoreVertical, FileDown, LayoutTemplate, PenTool, Mail, Sparkles as SparkleIcon, ArrowUp } from 'lucide-react';
+import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cloud, FileText, Lock, Video, Sparkles, ChevronDown, Plus, MoreVertical, FileDown, LayoutTemplate, PenTool, Mail, Sparkles as SparkleIcon, ArrowUp, Link as LinkIcon, X, Check } from 'lucide-react';
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FDFB', '#BFDF8A'];
 const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
@@ -21,11 +21,15 @@ const Editor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const user = useAuthStore(state => state.user);
-  const { documents, renameDocument, updateTimestamp } = useDocumentStore();
+  const { documents, renameDocument, updateTimestamp, addComment, resolveComment } = useDocumentStore();
   const doc = documents.find(d => d.id === id);
 
   const [status, setStatus] = useState('connecting');
   const [docTitle, setDocTitle] = useState(doc?.title || 'Untitled document');
+  const [activeUsers, setActiveUsers] = useState([]);
+  const [activeSidebar, setActiveSidebar] = useState(null); // 'history', 'comments', null
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [newCommentText, setNewCommentText] = useState('');
 
   const [ydoc] = useState(() => new Y.Doc());
   const [provider] = useState(() => new WebrtcProvider(
@@ -49,6 +53,26 @@ const Editor = () => {
     provider.on('synced', synced => {
       setStatus(synced ? 'connected' : 'connecting');
     });
+
+    const updateAwareness = () => {
+      const states = Array.from(provider.awareness.getStates().entries());
+      const users = states
+        .filter(([clientId, state]) => state.user)
+        .map(([clientId, state]) => ({
+          id: clientId,
+          name: state.user.name,
+          color: state.user.color,
+        }));
+        
+      // Filter out self and deduplicate by name for the avatar list
+      const currentUserName = user?.name || 'Anonymous';
+      const others = users.filter(u => u.name && u.name !== currentUserName);
+      const uniqueOthers = others.filter((v, i, a) => a.findIndex(t => t.name === v.name) === i);
+      setActiveUsers(uniqueOthers);
+    };
+
+    provider.awareness.on('change', updateAwareness);
+    updateAwareness();
 
     // Auto update timestamp on changes
     ydoc.on('update', () => {
@@ -170,10 +194,18 @@ const Editor = () => {
         {/* Right Side: Actions + Share + Avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
 
-          <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} title="Version History">
+          <button 
+            style={{ background: activeSidebar === 'history' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} 
+            title="Version History"
+            onClick={() => setActiveSidebar(activeSidebar === 'history' ? null : 'history')}
+          >
             <History size={22} />
           </button>
-          <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} title="Comments">
+          <button 
+            style={{ background: activeSidebar === 'comments' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} 
+            title="Comments"
+            onClick={() => setActiveSidebar(activeSidebar === 'comments' ? null : 'comments')}
+          >
             <MessageSquare size={22} />
           </button>
 
@@ -208,10 +240,7 @@ const Editor = () => {
                 fontSize: '0.9rem',
                 cursor: 'pointer'
               }}
-              onClick={() => {
-                const email = prompt('Enter email to invite:', '');
-                if (email) alert(`Invitation sent to ${email} (Mock)`);
-              }}
+              onClick={() => setIsShareModalOpen(true)}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
@@ -242,6 +271,22 @@ const Editor = () => {
           <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#1a73e8', cursor: 'pointer', borderRadius: '50%' }}>
             <Sparkles size={22} fill="#1a73e8" />
           </button>
+
+          <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', height: '24px', margin: '0 8px' }} />
+
+          {/* Active Users Avatars */}
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {activeUsers.map((u, i) => (
+              <div key={u.id} style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: u.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontWeight: 'bold', fontSize: '0.85rem',
+                border: '2px solid #fff', marginLeft: i > 0 ? '-8px' : '0', zIndex: 10 - i
+              }} title={u.name || 'Unknown'}>
+                {u.name ? u.name.charAt(0) : '?'}
+              </div>
+            ))}
+          </div>
 
           {/* Avatar with colorful ring */}
           <div style={{
@@ -423,7 +468,167 @@ const Editor = () => {
             </div>
           </div>
         </div>
+
+        {/* Right Sidebar */}
+        {activeSidebar && (
+          <div style={{
+            width: '300px',
+            background: '#fff',
+            borderLeft: '1px solid #e0e0e0',
+            display: 'flex',
+            flexDirection: 'column',
+            flexShrink: 0,
+            zIndex: 20
+          }}>
+            {/* Sidebar Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', borderBottom: '1px solid #e0e0e0' }}>
+              <span style={{ fontWeight: 500, color: '#1f1f1f', fontSize: '1rem' }}>
+                {activeSidebar === 'history' ? 'Version history' : 'Comments'}
+              </span>
+              <button 
+                className="btn-ghost" 
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#5f6368', borderRadius: '50%' }}
+                onClick={() => setActiveSidebar(null)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Sidebar Content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+              {activeSidebar === 'history' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {doc?.history?.length > 0 ? (
+                    [...doc.history].reverse().map((entry, idx) => (
+                      <div key={entry.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px', background: idx === 0 ? '#e8f0fe' : '#fff', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1f1f1f' }}>{new Date(entry.timestamp).toLocaleString()}</span>
+                        </div>
+                        <span style={{ fontSize: '0.85rem', color: '#5f6368' }}>{entry.author}</span>
+                        {idx !== 0 && (
+                          <button style={{ alignSelf: 'flex-start', marginTop: '8px', background: 'transparent', border: 'none', color: '#0b57d0', cursor: 'pointer', fontWeight: 500, fontSize: '0.85rem', padding: 0 }}>
+                            Restore this version
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ color: '#5f6368', fontSize: '0.9rem', textAlign: 'center', marginTop: '20px' }}>No history yet.</div>
+                  )}
+                </div>
+              )}
+
+              {activeSidebar === 'comments' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ padding: '12px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+                    <textarea 
+                      placeholder="Add a comment..."
+                      value={newCommentText}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', resize: 'none', minHeight: '60px', fontFamily: 'inherit', fontSize: '0.9rem' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                      <button 
+                        onClick={() => {
+                          if (newCommentText.trim()) {
+                            addComment(id, user?.name || 'Anonymous', newCommentText);
+                            setNewCommentText('');
+                          }
+                        }}
+                        style={{ background: '#0b57d0', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '4px', fontWeight: 500, cursor: 'pointer', fontSize: '0.85rem' }}>
+                        Comment
+                      </button>
+                    </div>
+                  </div>
+
+                  {doc?.comments?.length > 0 ? (
+                    doc.comments.map(comment => (
+                      <div key={comment.id} style={{ padding: '12px', border: '1px solid #e0e0e0', borderRadius: '8px', opacity: comment.resolved ? 0.6 : 1, position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1f1f1f' }}>{comment.user}</span>
+                          {!comment.resolved && (
+                            <button 
+                              onClick={() => resolveComment(id, comment.id)}
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#5f6368' }} 
+                              title="Mark as resolved">
+                              <Check size={16} />
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.9rem', color: '#3c4043', marginBottom: '8px' }}>{comment.text}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#5f6368' }}>{new Date(comment.timestamp).toLocaleDateString()}</div>
+                        {comment.resolved && (
+                          <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#188038', fontSize: '0.75rem', fontWeight: 500 }}>Resolved</div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ color: '#5f6368', fontSize: '0.9rem', textAlign: 'center', marginTop: '20px' }}>No comments yet.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Share Modal */}
+      {isShareModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 100,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }} onClick={() => setIsShareModalOpen(false)}>
+          <div style={{
+            background: '#fff', borderRadius: '8px', width: '500px', padding: '24px',
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ margin: '0 0 16px 0', fontSize: '1.25rem', color: '#1f1f1f' }}>Share "{docTitle}"</h2>
+            
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+              <input type="email" placeholder="Add people and groups" style={{
+                flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', fontSize: '1rem'
+              }} />
+              <select style={{
+                padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', background: '#f8f9fa', fontSize: '0.9rem'
+              }}>
+                <option value="editor">Editor</option>
+                <option value="commenter">Commenter</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '1rem', color: '#1f1f1f', margin: '0 0 12px 0' }}>People with access</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#a8c7fa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#041e49' }}>
+                    {doc?.owner?.charAt(0) || 'O'}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 500, color: '#1f1f1f' }}>{doc?.owner || 'Owner'} (you)</div>
+                    <div style={{ fontSize: '0.85rem', color: '#5f6368' }}>{doc?.ownerEmail || 'user@example.com'}</div>
+                  </div>
+                </div>
+                <span style={{ fontSize: '0.9rem', color: '#5f6368' }}>Owner</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button style={{
+                background: 'transparent', border: '1px solid #dadce0', borderRadius: '24px', padding: '8px 16px', color: '#1a73e8', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px'
+              }}>
+                <LinkIcon size={16} /> Copy link
+              </button>
+              <button style={{
+                background: '#0b57d0', border: 'none', borderRadius: '24px', padding: '8px 24px', color: '#fff', fontWeight: 500, cursor: 'pointer'
+              }} onClick={() => setIsShareModalOpen(false)}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
