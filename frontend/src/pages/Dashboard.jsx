@@ -13,9 +13,15 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('recent'); // 'recent', 'owned', 'shared'
 
-  const { documents, createDocument, deleteDocument, renameDocument, duplicateDocument } = useDocumentStore();
+  const { documents, sharedDocuments, fetchDocuments, createDocument, deleteDocument, renameDocument, duplicateDocument } = useDocumentStore();
   const [activeMenu, setActiveMenu] = useState(null); // id of doc with active menu
   const [profileMenu, setProfileMenu] = useState(false);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  const recentDocs = [...documents, ...(sharedDocuments || [])].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
   const handleLogout = () => {
     logout();
@@ -43,16 +49,9 @@ const Dashboard = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
-  const filteredDocs = documents.filter(doc => {
+  const filteredDocs = (activeTab === 'recent' ? recentDocs : activeTab === 'owned' ? documents : (sharedDocuments || [])).filter(doc => {
     const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const isOwner = doc.owner === user?.name;
-    const isShared = !isOwner; // Simplified mock condition
-
-    if (!matchesSearch) return false;
-    
-    if (activeTab === 'owned') return isOwner;
-    if (activeTab === 'shared') return isShared;
-    return true; // 'recent' shows all
+    return matchesSearch;
   }).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
   return (
@@ -339,7 +338,7 @@ const Dashboard = () => {
                         Created: {new Date(doc.createdAt).toLocaleDateString()}
                       </span>
                       <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>
-                        Owner: {doc.owner}
+                        Owner: {doc.owner?.name || 'Unknown'}
                       </span>
                     </div>
                   </div>
