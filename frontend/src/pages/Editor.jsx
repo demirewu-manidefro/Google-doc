@@ -329,7 +329,7 @@ const Editor = () => {
             <div style={{
               width: '816px',
               height: '100%',
-              background: '#ffffff',
+              background: 'transparent',
               position: 'relative',
             }}>
               {/* Left blue triangle / marker */}
@@ -340,17 +340,6 @@ const Editor = () => {
               {/* Right blue triangle / marker */}
               <div style={{ position: 'absolute', right: '10%', top: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: 'translateX(50%)' }}>
                 <div style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid #0a57d0' }} />
-              </div>
-
-              {/* Tick marks */}
-              <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 40px' }}>
-                {[1, 2, 3, 4, 5, 6, 7].map((num) => (
-                  <div key={num} style={{ position: 'relative', height: '10px', width: '1px', background: '#c7c7c7' }}>
-                    <span style={{ position: 'absolute', top: '-14px', left: '-4px', fontSize: '10px', color: '#747775', fontFamily: 'Arial' }}>{num}</span>
-                    <div style={{ position: 'absolute', left: '-20px', bottom: '0', height: '6px', width: '1px', background: '#e3e3e3' }} />
-                    <div style={{ position: 'absolute', left: '20px', bottom: '0', height: '6px', width: '1px', background: '#e3e3e3' }} />
-                  </div>
-                ))}
               </div>
             </div>
           </div>
