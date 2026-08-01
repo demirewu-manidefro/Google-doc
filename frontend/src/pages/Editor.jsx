@@ -5,7 +5,6 @@ import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import Link from '@tiptap/extension-link';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
@@ -13,7 +12,7 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 import { useAuthStore } from '../store/authStore';
 import { useDocumentStore } from '../store/documentStore';
 import Toolbar from '../components/Toolbar';
-import { ArrowLeft, Share, Save, Users, History, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cloud, FileText, Lock, Video, Sparkles, ChevronDown, Plus, MoreVertical } from 'lucide-react';
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FDFB', '#BFDF8A'];
 const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
@@ -28,8 +27,12 @@ const Editor = () => {
   const [status, setStatus] = useState('connecting');
   const [docTitle, setDocTitle] = useState(doc?.title || 'Untitled Document');
   
-  const ydocRef = useRef(null);
-  const providerRef = useRef(null);
+  const [ydoc] = useState(() => new Y.Doc());
+  const [provider] = useState(() => new WebrtcProvider(
+    `syncwrite-document-${id}`,
+    ydoc,
+    { signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com'] }
+  ));
 
   useEffect(() => {
     if (!doc) {
@@ -37,23 +40,11 @@ const Editor = () => {
       return;
     }
 
-    // Initialize Yjs document
-    const ydoc = new Y.Doc();
-    ydocRef.current = ydoc;
-
     // Persist document offline
     const persistence = new IndexeddbPersistence(`document-${id}`, ydoc);
     persistence.on('synced', () => {
       console.log('Document synced with IndexedDB');
     });
-
-    // Connect to WebRTC for peer-to-peer collaboration
-    const provider = new WebrtcProvider(
-      `syncwrite-document-${id}`,
-      ydoc,
-      { signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com'] }
-    );
-    providerRef.current = provider;
 
     provider.on('synced', synced => {
       setStatus(synced ? 'connected' : 'connecting');
@@ -69,7 +60,7 @@ const Editor = () => {
       persistence.destroy();
       ydoc.destroy();
     };
-  }, [id, doc, navigate, updateTimestamp]);
+  }, [id, doc, navigate, updateTimestamp, ydoc, provider]);
 
   const editor = useEditor({
     extensions: [
@@ -84,14 +75,7 @@ const Editor = () => {
         openOnClick: false,
       }),
       Collaboration.configure({
-        document: ydocRef.current,
-      }),
-      CollaborationCursor.configure({
-        provider: providerRef.current,
-        user: {
-          name: user?.name || 'Anonymous',
-          color: getRandomColor(),
-        },
+        document: ydoc,
       }),
     ],
     content: `
@@ -102,121 +86,294 @@ const Editor = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--bg-primary)' }}>
-      {/* Editor Header */}
-      <header className="flex-between glass-panel" style={{ 
-        padding: '12px 24px', 
-        borderRadius: 0, 
-        borderLeft: 'none', 
-        borderRight: 'none', 
-        borderTop: 'none',
-        position: 'sticky',
-        top: 0,
+      {/* Google Docs Style Header */}
+      <header style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        padding: '8px 16px',
+        background: '#f9fbfd',
         zIndex: 10
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button className="btn-ghost" onClick={() => navigate('/dashboard')} title="Back to Dashboard">
-            <ArrowLeft size={20} />
+        {/* Left Side: Icon + Title + Menu */}
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {/* App Icon */}
+          <button 
+            className="btn-ghost" 
+            onClick={() => navigate('/dashboard')} 
+            style={{ padding: '8px', color: '#4285F4', background: 'transparent' }}
+          >
+            <div style={{ 
+              width: '36px', height: '40px', background: '#4285F4', borderRadius: '4px',
+              display: 'flex', flexDirection: 'column', padding: '6px', gap: '3px'
+            }}>
+              <div style={{ width: '100%', height: '3px', background: '#fff', borderRadius: '2px' }} />
+              <div style={{ width: '80%', height: '3px', background: '#fff', borderRadius: '2px' }} />
+              <div style={{ width: '100%', height: '3px', background: '#fff', borderRadius: '2px' }} />
+            </div>
           </button>
           
-          <input 
-            type="text" 
-            value={docTitle}
-            onChange={(e) => setDocTitle(e.target.value)}
-            onBlur={(e) => {
-              renameDocument(id, e.target.value);
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.borderColor = 'transparent';
-            }}
-            style={{ 
-              background: 'transparent', 
-              border: '1px solid transparent', 
-              color: 'var(--text-primary)', 
-              fontSize: '1.25rem', 
-              fontWeight: 600,
-              padding: '4px 8px',
-              borderRadius: 'var(--radius-sm)',
-              outline: 'none',
-              fontFamily: 'Outfit, sans-serif'
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.background = 'var(--bg-secondary)';
-              e.currentTarget.style.borderColor = 'var(--accent-primary)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.borderColor = 'transparent';
-            }}
-          />
-          
-          {/* Status Indicator */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '6px', 
-            fontSize: '0.8rem',
-            color: status === 'connected' ? 'var(--success)' : 'var(--warning)',
-            background: status === 'connected' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-            padding: '4px 10px',
-            borderRadius: '20px'
-          }}>
-            <div style={{ 
-              width: '8px', 
-              height: '8px', 
-              borderRadius: '50%', 
-              background: status === 'connected' ? 'var(--success)' : 'var(--warning)' 
-            }} />
-            {status === 'connected' ? 'Saved (Real-time)' : 'Offline (Local)'}
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', marginLeft: '4px' }}>
+            {/* Title Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0' }}>
+              <input 
+                type="text" 
+                value={docTitle}
+                onChange={(e) => setDocTitle(e.target.value)}
+                onBlur={(e) => {
+                  renameDocument(id, e.target.value);
+                  e.currentTarget.style.border = '1px solid transparent';
+                }}
+                style={{ 
+                  background: 'transparent', 
+                  border: '1px solid transparent', 
+                  color: '#1f1f1f', 
+                  fontSize: '1.1rem', 
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  width: Math.max(160, docTitle.length * 10) + 'px'
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.border = '1px solid #1f1f1f';
+                }}
+              />
+              <button style={{ background: 'transparent', border: 'none', padding: '4px', color: '#444746', cursor: 'pointer', display: 'flex' }}><Star size={16} /></button>
+              <button style={{ background: 'transparent', border: 'none', padding: '4px', color: '#444746', cursor: 'pointer', display: 'flex' }}><Folder size={16} /></button>
+              <button style={{ background: 'transparent', border: 'none', padding: '4px', color: '#444746', cursor: 'pointer', display: 'flex' }}><Cloud size={16} /></button>
+            </div>
+            
+            {/* Menu Row */}
+            <div style={{ display: 'flex', gap: '2px', fontSize: '0.875rem', color: '#1f1f1f', marginLeft: '2px' }}>
+              {['File', 'Edit', 'View', 'Insert', 'Format', 'Tools', 'Gemini', 'Extensions', 'Help'].map(menu => (
+                <button 
+                  key={menu} 
+                  style={{ 
+                    padding: '2px 7px', 
+                    borderRadius: '4px', 
+                    color: '#1f1f1f', 
+                    background: 'transparent', 
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e8eaed'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  {menu}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Connected Users avatars would go here */}
-          <div style={{ display: 'flex', marginRight: '16px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent-primary)', border: '2px solid var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 'bold' }}>
-              {user?.name?.charAt(0)}
-            </div>
+        {/* Right Side: Actions + Share + Avatar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+          
+          <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} title="Version History">
+            <History size={22} />
+          </button>
+          <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} title="Comments">
+            <MessageSquare size={22} />
+          </button>
+          
+          {/* Video call with dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', background: 'transparent', borderRadius: '24px', cursor: 'pointer' }}>
+            <button style={{ background: 'transparent', border: 'none', padding: '8px 4px 8px 12px', color: '#444746', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <Video size={24} />
+            </button>
+            <button style={{ background: 'transparent', border: 'none', padding: '8px 12px 8px 0', color: '#444746', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <ChevronDown size={16} />
+            </button>
           </div>
 
-          <button className="btn-ghost" title="Version History" onClick={() => alert('Version History sidebar opened (Mock)')}>
-            <History size={18} />
-          </button>
-          <button className="btn-ghost" title="Comments" onClick={() => alert('Comments sidebar opened (Mock)')}>
-            <MessageSquare size={18} />
-          </button>
-          <button className="btn btn-secondary" onClick={() => {
-            const email = prompt('Enter email to invite:', '');
-            if (email) alert(`Invitation sent to ${email} (Mock)`);
+          {/* Share Button Group */}
+          <div style={{ 
+            display: 'flex', 
+            background: '#c2e7ff', 
+            borderRadius: '24px', 
+            height: '40px',
+            overflow: 'hidden' 
           }}>
-            <Share size={16} />
-            Share
+            <button 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'transparent',
+                color: '#001d35',
+                border: 'none',
+                padding: '0 16px',
+                fontWeight: 500,
+                fontSize: '0.9rem',
+                cursor: 'pointer'
+              }}
+              onClick={() => {
+                const email = prompt('Enter email to invite:', '');
+                if (email) alert(`Invitation sent to ${email} (Mock)`);
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <Lock size={16} />
+              Share
+            </button>
+            
+            <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', height: '100%' }} />
+            
+            <button 
+              style={{ 
+                background: 'transparent', 
+                border: 'none', 
+                padding: '0 8px', 
+                color: '#001d35', 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <ChevronDown size={16} />
+            </button>
+          </div>
+
+          {/* Gemini Icon */}
+          <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#1a73e8', cursor: 'pointer', borderRadius: '50%' }}>
+            <Sparkles size={22} fill="#1a73e8" />
           </button>
+
+          {/* Avatar with colorful ring */}
+          <div style={{ 
+            marginLeft: '4px', 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '50%', 
+            background: '#a8c7fa', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            color: '#041e49', 
+            fontWeight: 'bold',
+            border: '2px solid transparent',
+            backgroundImage: 'linear-gradient(#f9fbfd, #f9fbfd), conic-gradient(from 0deg, #ea4335 0deg, #fbbc04 90deg, #34a853 180deg, #4285f4 270deg, #ea4335 360deg)',
+            backgroundOrigin: 'border-box',
+            backgroundClip: 'content-box, border-box'
+          }}>
+            {user?.name?.charAt(0) || 'U'}
+          </div>
         </div>
       </header>
 
+      {/* Toolbar Area (Full Width) */}
+      <Toolbar editor={editor} />
+
       {/* Editor Main Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <Toolbar editor={editor} />
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         
-        <div style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
-          display: 'flex', 
-          justifyContent: 'center',
-          padding: '2rem 1rem' 
+        {/* Left Sidebar (Document tabs) */}
+        <div style={{
+          width: '280px',
+          background: '#ffffff',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '16px 20px',
+          flexShrink: 0
         }}>
-          {/* A4 Paper Look */}
-          <div className="editor-paper" style={{
-            width: '100%',
-            maxWidth: '850px',
-            background: 'var(--bg-secondary)',
-            minHeight: '1056px', // 8.5 x 11 ratio
-            padding: '4rem',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-lg)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)'
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', color: '#444746', cursor: 'pointer' }}>
+            <ArrowLeft size={20} />
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', color: '#1f1f1f', fontWeight: 500, fontSize: '0.875rem' }}>
+            Document tabs
+            <Plus size={18} style={{ cursor: 'pointer', color: '#444746' }} />
+          </div>
+
+          <div style={{
+            background: '#c2e7ff',
+            color: '#001d35',
+            padding: '10px 12px',
+            borderRadius: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+            marginBottom: '16px'
           }}>
-            <EditorContent editor={editor} className="tiptap-editor" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={16} color="#0a57d0" /> Tab 1
+            </div>
+            <MoreVertical size={16} color="#001d35" style={{ cursor: 'pointer' }} />
+          </div>
+
+          <div style={{ color: '#444746', fontSize: '0.85rem', fontStyle: 'italic', lineHeight: '1.5' }}>
+            Headings you add to the document will appear here.
+          </div>
+        </div>
+
+        {/* Main Content Area (Ruler + Paper) */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f9fbfd' }}>
+          
+          {/* Mock Ruler */}
+          <div style={{ 
+            height: '24px', 
+            background: '#f9fbfd', 
+            borderBottom: '1px solid #e3e3e3',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-end',
+            flexShrink: 0
+          }}>
+            <div style={{
+              width: '816px',
+              height: '100%',
+              background: '#ffffff',
+              position: 'relative',
+              borderLeft: '1px solid #e3e3e3',
+              borderRight: '1px solid #e3e3e3'
+            }}>
+              {/* Left blue triangle */}
+              <div style={{ position: 'absolute', left: '10%', top: '0', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid #0a57d0' }} />
+              {/* Right blue triangle */}
+              <div style={{ position: 'absolute', right: '10%', top: '0', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid #0a57d0' }} />
+              
+              {/* Tick marks */}
+              <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 40px' }}>
+                {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                  <div key={num} style={{ position: 'relative', height: '10px', width: '1px', background: '#c7c7c7' }}>
+                    <span style={{ position: 'absolute', top: '-14px', left: '-4px', fontSize: '10px', color: '#747775', fontFamily: 'Arial' }}>{num}</span>
+                    <div style={{ position: 'absolute', left: '-20px', bottom: '0', height: '6px', width: '1px', background: '#e3e3e3' }} />
+                    <div style={{ position: 'absolute', left: '20px', bottom: '0', height: '6px', width: '1px', background: '#e3e3e3' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Paper Container */}
+          <div style={{ 
+            flex: 1, 
+            overflowY: 'auto', 
+            display: 'flex', 
+            justifyContent: 'center',
+            padding: '2rem 1rem',
+            background: '#f8f9fa'
+          }}>
+            {/* A4 Paper Look */}
+            <div className="editor-paper" style={{
+              width: '100%',
+              maxWidth: '816px', // 8.5 inches at 96dpi
+              background: '#ffffff',
+              minHeight: '1056px', // 11 inches at 96dpi
+              padding: '96px', // 1 inch margins
+              boxShadow: '0 1px 3px 1px rgba(60,64,67,0.15)',
+              color: '#000000',
+              fontFamily: 'Arial, sans-serif'
+            }}>
+              <EditorContent editor={editor} className="tiptap-editor" />
+            </div>
           </div>
         </div>
       </div>
