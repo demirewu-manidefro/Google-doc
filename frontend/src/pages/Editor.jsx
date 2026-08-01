@@ -12,7 +12,7 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 import { useAuthStore } from '../store/authStore';
 import { useDocumentStore } from '../store/documentStore';
 import Toolbar from '../components/Toolbar';
-import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cloud, FileText, Lock, Video, Sparkles, ChevronDown, Plus, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cloud, FileText, Lock, Video, Sparkles, ChevronDown, Plus, MoreVertical, FileDown, LayoutTemplate, PenTool, Mail, Sparkles as SparkleIcon, ArrowUp } from 'lucide-react';
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FDFB', '#BFDF8A'];
 const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
@@ -25,7 +25,7 @@ const Editor = () => {
   const doc = documents.find(d => d.id === id);
   
   const [status, setStatus] = useState('connecting');
-  const [docTitle, setDocTitle] = useState(doc?.title || 'Untitled Document');
+  const [docTitle, setDocTitle] = useState(doc?.title || 'Untitled document');
   
   const [ydoc] = useState(() => new Y.Doc());
   const [provider] = useState(() => new WebrtcProvider(
@@ -85,8 +85,8 @@ const Editor = () => {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: 'var(--bg-primary)' }}>
-      {/* Google Docs Style Header */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f9fbfd', fontFamily: '"Google Sans", Roboto, Arial, sans-serif' }}>
+      {/* Header */}
       <header style={{ 
         display: 'flex', 
         justifyContent: 'space-between',
@@ -277,14 +277,14 @@ const Editor = () => {
           background: '#ffffff',
           display: 'flex',
           flexDirection: 'column',
-          padding: '16px 20px',
+          padding: '16px',
           flexShrink: 0
         }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', color: '#444746', cursor: 'pointer' }}>
-            <ArrowLeft size={20} />
+            <ArrowLeft size={18} />
           </div>
           
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', color: '#1f1f1f', fontWeight: 500, fontSize: '0.875rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', color: '#1f1f1f', fontWeight: 500, fontSize: '0.85rem' }}>
             Document tabs
             <Plus size={18} style={{ cursor: 'pointer', color: '#444746' }} />
           </div>
@@ -334,10 +334,15 @@ const Editor = () => {
               borderLeft: '1px solid #e3e3e3',
               borderRight: '1px solid #e3e3e3'
             }}>
-              {/* Left blue triangle */}
-              <div style={{ position: 'absolute', left: '10%', top: '0', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid #0a57d0' }} />
-              {/* Right blue triangle */}
-              <div style={{ position: 'absolute', right: '10%', top: '0', width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid #0a57d0' }} />
+              {/* Left blue triangle / marker */}
+              <div style={{ position: 'absolute', left: '10%', top: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: 'translateX(-50%)' }}>
+                <div style={{ width: '8px', height: '4px', background: '#0a57d0' }} />
+                <div style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid #0a57d0' }} />
+              </div>
+              {/* Right blue triangle / marker */}
+              <div style={{ position: 'absolute', right: '10%', top: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', transform: 'translateX(50%)' }}>
+                <div style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '6px solid #0a57d0' }} />
+              </div>
               
               {/* Tick marks */}
               <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 40px' }}>
@@ -357,22 +362,77 @@ const Editor = () => {
             flex: 1, 
             overflowY: 'auto', 
             display: 'flex', 
-            justifyContent: 'center',
-            padding: '2rem 1rem',
-            background: '#f8f9fa'
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '12px 16px 80px 16px',
+            background: '#f9fbfd',
+            position: 'relative'
           }}>
             {/* A4 Paper Look */}
             <div className="editor-paper" style={{
               width: '100%',
-              maxWidth: '816px', // 8.5 inches at 96dpi
+              maxWidth: '816px',
               background: '#ffffff',
-              minHeight: '1056px', // 11 inches at 96dpi
-              padding: '96px', // 1 inch margins
+              minHeight: '1056px',
+              padding: '96px',
               boxShadow: '0 1px 3px 1px rgba(60,64,67,0.15)',
               color: '#000000',
               fontFamily: 'Arial, sans-serif'
             }}>
               <EditorContent editor={editor} className="tiptap-editor" />
+            </div>
+
+            {/* Floating Gemini Prompt Bar */}
+            <div style={{
+              position: 'fixed',
+              bottom: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px',
+              zIndex: 50
+            }}>
+              {/* Suggestion Chips */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[{icon: FileDown, text: 'Match doc format'}, {icon: LayoutTemplate, text: 'Templates'}, {icon: PenTool, text: 'Meeting notes'}, {icon: Mail, text: 'Email draft'}].map(chip => (
+                  <button key={chip.text} style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '6px 12px', background: '#f0f4f9', border: 'none',
+                    borderRadius: '8px', color: '#444746', fontSize: '0.85rem', cursor: 'pointer'
+                  }}>
+                    <chip.icon size={14} /> {chip.text}
+                  </button>
+                ))}
+                <button style={{
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  padding: '6px 12px', background: '#f0f4f9', border: 'none',
+                  borderRadius: '8px', color: '#444746', fontSize: '0.85rem', cursor: 'pointer'
+                }}>
+                  <Plus size={14} /> More
+                </button>
+              </div>
+
+              {/* Input Bar */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                background: '#ffffff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+                borderRadius: '24px',
+                padding: '8px 12px',
+                width: '600px',
+                border: '1px solid #e3e3e3'
+              }}>
+                <SparkleIcon size={20} color="#0a57d0" style={{ margin: '0 8px' }} />
+                <input 
+                  type="text" 
+                  placeholder="Create an outline for..." 
+                  style={{ flex: 1, border: 'none', outline: 'none', fontSize: '0.95rem', color: '#1f1f1f', padding: '4px 8px' }}
+                />
+                <button style={{ background: '#f0f4f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}>
+                  <ArrowUp size={16} color="#444746" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
