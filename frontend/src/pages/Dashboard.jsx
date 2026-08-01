@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Plus, Search, FileText, MoreVertical, LogOut, Clock, Users, Folder } from 'lucide-react';
+import { Plus, Search, FileText, MoreVertical, LogOut, Menu, LayoutGrid } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 import { useDocumentStore } from '../store/documentStore';
@@ -10,11 +10,11 @@ const Dashboard = () => {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('recent'); // recent, owned, shared
   const [searchQuery, setSearchQuery] = useState('');
 
   const { documents, createDocument, deleteDocument, renameDocument, duplicateDocument } = useDocumentStore();
   const [activeMenu, setActiveMenu] = useState(null); // id of doc with active menu
+  const [profileMenu, setProfileMenu] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -32,258 +32,357 @@ const Dashboard = () => {
     navigate(`/document/${id}`);
   };
 
-  // Close menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => setActiveMenu(null);
+    const handleClickOutside = () => {
+      setActiveMenu(null);
+      setProfileMenu(false);
+    };
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
   const filteredDocs = documents.filter(doc => {
-    const matchesSearch = doc.title.toLowerCase().includes(searchQuery.toLowerCase());
-    if (!matchesSearch) return false;
-    
-    if (activeTab === 'recent') return true; 
-    if (activeTab === 'owned') return doc.owner === user?.name;
-    if (activeTab === 'shared') return doc.owner !== user?.name;
-    return true;
+    return doc.title.toLowerCase().includes(searchQuery.toLowerCase());
   }).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
-      {/* Sidebar */}
-      <aside className="glass-panel" style={{ 
-        width: '260px', 
-        borderLeft: 'none', 
-        borderTop: 'none', 
-        borderBottom: 'none', 
-        borderRadius: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '1.5rem 0'
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#fff' }}>
+      
+      {/* Top Navbar */}
+      <header style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        padding: '12px 24px', 
+        borderBottom: '1px solid #e0e0e0',
+        backgroundColor: '#fff',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10
       }}>
-        <div style={{ padding: '0 1.5rem', marginBottom: '2rem' }} className="flex-center">
+        {/* Left: Menu & Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '200px' }}>
+          <button className="btn-ghost" style={{ padding: '8px', color: '#5f6368' }}>
+            <Menu size={24} />
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => navigate('/dashboard')}>
+            <FileText size={32} fill="#4285F4" stroke="white" />
+            <span style={{ fontSize: '1.4rem', color: '#5f6368', fontFamily: 'Product Sans, Arial, sans-serif' }}>SyncWrite</span>
+          </div>
+        </div>
+
+        {/* Center: Search Bar */}
+        <div style={{ flex: 1, maxWidth: '720px', padding: '0 20px' }}>
           <div style={{ 
-            background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-            padding: '8px',
-            borderRadius: '12px',
-            marginRight: '12px'
+            position: 'relative', 
+            width: '100%',
+            backgroundColor: '#f1f3f4',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            transition: 'background-color 0.1s ease, box-shadow 0.1s ease'
           }}>
-            <FileText size={20} color="white" />
-          </div>
-          <h2 className="heading-gradient" style={{ fontSize: '1.5rem' }}>SyncWrite</h2>
-        </div>
-
-        <div style={{ padding: '0 1.5rem', marginBottom: '2rem' }}>
-          <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleCreateDoc}>
-            <Plus size={18} />
-            <span>New Document</span>
-          </button>
-        </div>
-
-        <nav style={{ flex: 1, padding: '0 1rem' }}>
-          <ul style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <li>
-              <button 
-                onClick={() => setActiveTab('recent')}
-                style={{ 
-                  display: 'flex', alignItems: 'center', gap: '12px', width: '100%', 
-                  padding: '10px 16px', borderRadius: 'var(--radius-md)',
-                  color: activeTab === 'recent' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  background: activeTab === 'recent' ? 'rgba(0,0,0,0.05)' : 'transparent',
-                  transition: 'all var(--transition-fast)'
-                }}
-              >
-                <Clock size={18} />
-                <span style={{ fontWeight: 500 }}>Recent</span>
-              </button>
-            </li>
-            <li>
-              <button 
-                onClick={() => setActiveTab('owned')}
-                style={{ 
-                  display: 'flex', alignItems: 'center', gap: '12px', width: '100%', 
-                  padding: '10px 16px', borderRadius: 'var(--radius-md)',
-                  color: activeTab === 'owned' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  background: activeTab === 'owned' ? 'rgba(0,0,0,0.05)' : 'transparent',
-                  transition: 'all var(--transition-fast)'
-                }}
-              >
-                <Folder size={18} />
-                <span style={{ fontWeight: 500 }}>My Documents</span>
-              </button>
-            </li>
-            <li>
-              <button 
-                onClick={() => setActiveTab('shared')}
-                style={{ 
-                  display: 'flex', alignItems: 'center', gap: '12px', width: '100%', 
-                  padding: '10px 16px', borderRadius: 'var(--radius-md)',
-                  color: activeTab === 'shared' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  background: activeTab === 'shared' ? 'rgba(0,0,0,0.05)' : 'transparent',
-                  transition: 'all var(--transition-fast)'
-                }}
-              >
-                <Users size={18} />
-                <span style={{ fontWeight: 500 }}>Shared with me</span>
-              </button>
-            </li>
-          </ul>
-        </nav>
-
-        {/* User Profile Footer */}
-        <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src={user?.avatar} alt="Avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-tertiary)' }} />
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <div style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{user?.name}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{user?.email}</div>
-          </div>
-          <button onClick={handleLogout} className="btn-ghost" title="Logout">
-            <LogOut size={18} />
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main style={{ flex: 1, padding: '2rem 3rem', display: 'flex', flexDirection: 'column' }}>
-        <header className="flex-between" style={{ marginBottom: '3rem' }}>
-          <h1 style={{ fontSize: '2rem', color: 'var(--text-primary)' }}>
-            {activeTab === 'recent' && 'Recent Documents'}
-            {activeTab === 'owned' && 'My Documents'}
-            {activeTab === 'shared' && 'Shared With Me'}
-          </h1>
-          
-          <div style={{ position: 'relative', width: '300px' }}>
-            <Search size={18} color="var(--text-tertiary)" style={{ position: 'absolute', left: '12px', top: '14px' }} />
+            <button className="btn-ghost" style={{ padding: '12px', color: '#5f6368' }}>
+              <Search size={20} />
+            </button>
             <input 
               type="text" 
-              className="input-field" 
-              placeholder="Search documents..." 
-              style={{ paddingLeft: '40px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-xl)' }}
+              placeholder="Search" 
+              style={{ 
+                flex: 1, 
+                background: 'transparent', 
+                border: 'none', 
+                padding: '12px 12px 12px 0',
+                fontSize: '1rem',
+                color: '#202124',
+                outline: 'none'
+              }}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-        </header>
+        </div>
 
-        {/* Document Grid */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
-          gap: '1.5rem' 
-        }}>
-          {filteredDocs.map(doc => (
-            <div 
-              key={doc.id} 
-              className="glass-panel" 
+        {/* Right: Profile */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '200px', justifyContent: 'flex-end' }}>
+          <button className="btn-ghost" style={{ padding: '8px', color: '#5f6368' }}>
+            <LayoutGrid size={24} />
+          </button>
+          
+          <div style={{ position: 'relative' }}>
+            <button 
               style={{ 
-                padding: '1.5rem', 
+                width: '40px', 
+                height: '40px', 
+                borderRadius: '50%', 
+                background: '#a8c7fa', 
+                border: 'none',
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                color: '#041e49', 
+                fontWeight: 'bold',
                 cursor: 'pointer',
-                transition: 'all var(--transition-normal)',
-                position: 'relative'
+                fontSize: '1.1rem'
               }}
-              onClick={() => openDoc(doc.id)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = 'var(--shadow-glow)';
-                e.currentTarget.style.borderColor = 'var(--accent-primary)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'var(--glass-shadow)';
-                e.currentTarget.style.borderColor = 'var(--glass-border)';
+              onClick={(e) => {
+                e.stopPropagation();
+                setProfileMenu(!profileMenu);
               }}
             >
-              <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                <div style={{ 
-                  background: 'rgba(99, 102, 241, 0.1)', 
-                  padding: '10px', 
-                  borderRadius: '10px',
-                  color: 'var(--accent-primary)'
-                }}>
-                  <FileText size={24} />
+              {user?.name?.charAt(0) || 'U'}
+            </button>
+
+            {profileMenu && (
+              <div style={{
+                position: 'absolute',
+                top: '50px',
+                right: 0,
+                background: '#fff',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                borderRadius: '8px',
+                padding: '16px',
+                minWidth: '250px',
+                zIndex: 20
+              }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#a8c7fa', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#041e49', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                    {user?.name?.charAt(0) || 'U'}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 500, color: '#202124' }}>{user?.name}</div>
+                    <div style={{ fontSize: '0.85rem', color: '#5f6368' }}>{user?.email}</div>
+                  </div>
                 </div>
-                <div style={{ position: 'relative' }}>
-                  <button 
-                    className="btn-ghost" 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      setActiveMenu(activeMenu === doc.id ? null : doc.id);
-                    }}
-                  >
-                    <MoreVertical size={18} />
-                  </button>
-                  {activeMenu === doc.id && (
-                    <div 
-                      className="glass-panel"
-                      style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: '100%',
-                        zIndex: 50,
-                        minWidth: '150px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        padding: '0.5rem',
-                        background: 'var(--bg-primary)'
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button 
-                        className="btn-ghost" 
-                        style={{ textAlign: 'left', padding: '0.5rem', width: '100%' }}
-                        onClick={() => {
-                          const newTitle = prompt('Enter new title:', doc.title);
-                          if (newTitle) renameDocument(doc.id, newTitle);
-                          setActiveMenu(null);
-                        }}
-                      >
-                        Rename
-                      </button>
-                      <button 
-                        className="btn-ghost" 
-                        style={{ textAlign: 'left', padding: '0.5rem', width: '100%' }}
-                        onClick={() => {
-                          duplicateDocument(doc.id, user?.name);
-                          setActiveMenu(null);
-                        }}
-                      >
-                        Duplicate
-                      </button>
-                      <button 
-                        className="btn-ghost" 
-                        style={{ textAlign: 'left', padding: '0.5rem', width: '100%', color: 'var(--danger)' }}
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this document?')) {
-                            deleteDocument(doc.id);
-                          }
-                          setActiveMenu(null);
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <hr style={{ border: 'none', borderTop: '1px solid #e0e0e0', margin: '12px 0' }} />
+                <button 
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    background: '#fff',
+                    border: '1px solid #dadce0',
+                    borderRadius: '4px',
+                    color: '#3c4043',
+                    fontWeight: 500,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <LogOut size={18} />
+                  Sign out
+                </button>
               </div>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{doc.title}</h3>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                <div className="flex-between">
-                  <span>Owner:</span>
-                  <span style={{ color: 'var(--text-primary)' }}>{doc.owner}</span>
-                </div>
-                <div className="flex-between">
-                  <span>Opened:</span>
-                  <span>{formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}</span>
-                </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Start a new document section */}
+      {!searchQuery && (
+        <section style={{ backgroundColor: '#f1f3f4', padding: '32px 0' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <span style={{ fontSize: '1rem', color: '#202124', fontWeight: 500 }}>Start a new document</span>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '20px' }}>
+              {/* Blank Template Card */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '140px' }}>
+                <button 
+                  onClick={handleCreateDoc}
+                  style={{ 
+                    width: '140px',
+                    height: '180px',
+                    backgroundColor: '#fff',
+                    border: '1px solid #dadce0',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = '#1a73e8'}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = '#dadce0'}
+                >
+                  <Plus size={48} color="#1a73e8" strokeWidth={1.5} />
+                </button>
+                <span style={{ fontSize: '0.9rem', color: '#202124', fontWeight: 500, paddingLeft: '4px' }}>Blank document</span>
               </div>
             </div>
-          ))}
+          </div>
+        </section>
+      )}
+
+      {/* Recent Documents Section */}
+      <main style={{ flex: 1, backgroundColor: '#fff', padding: '32px 0' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 24px' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <span style={{ fontSize: '1rem', color: '#202124', fontWeight: 500 }}>
+              {searchQuery ? 'Search results' : 'Recent documents'}
+            </span>
+          </div>
+
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+            gap: '20px' 
+          }}>
+            {filteredDocs.map(doc => (
+              <div 
+                key={doc.id} 
+                style={{ 
+                  width: '100%',
+                  border: '1px solid #dadce0',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  backgroundColor: '#fff',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+                onClick={() => openDoc(doc.id)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#1a73e8';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#dadce0';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                {/* Thumbnail Area */}
+                <div style={{ 
+                  height: '180px', 
+                  backgroundColor: '#f8f9fa',
+                  borderBottom: '1px solid #dadce0',
+                  borderTopLeftRadius: '4px',
+                  borderTopRightRadius: '4px',
+                  padding: '16px',
+                  overflow: 'hidden',
+                  color: '#bdc1c6',
+                  display: 'flex',
+                  alignItems: 'flex-start'
+                }}>
+                   {/* Fake text lines for thumbnail */}
+                   <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                     <div style={{ width: '80%', height: '8px', background: '#e8eaed', borderRadius: '4px' }}></div>
+                     <div style={{ width: '100%', height: '8px', background: '#e8eaed', borderRadius: '4px' }}></div>
+                     <div style={{ width: '90%', height: '8px', background: '#e8eaed', borderRadius: '4px' }}></div>
+                     <div style={{ width: '60%', height: '8px', background: '#e8eaed', borderRadius: '4px' }}></div>
+                   </div>
+                </div>
+
+                {/* Footer Area */}
+                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <FileText size={20} fill="#4285F4" stroke="white" style={{ flexShrink: 0 }} />
+                  
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ 
+                      fontSize: '0.9rem', 
+                      color: '#202124', 
+                      fontWeight: 500,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      marginBottom: '4px'
+                    }}>
+                      {doc.title}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#5f6368', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ 
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        Opened {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <button 
+                      className="btn-ghost" 
+                      style={{ padding: '4px', color: '#5f6368', borderRadius: '50%' }}
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setActiveMenu(activeMenu === doc.id ? null : doc.id);
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <MoreVertical size={18} />
+                    </button>
+                    {activeMenu === doc.id && (
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: '100%',
+                          zIndex: 50,
+                          minWidth: '150px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          padding: '8px 0',
+                          background: '#fff',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                          borderRadius: '4px'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button 
+                          style={{ textAlign: 'left', padding: '8px 16px', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: '#202124', fontSize: '0.9rem' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f3f4'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          onClick={() => {
+                            const newTitle = prompt('Enter new title:', doc.title);
+                            if (newTitle) renameDocument(doc.id, newTitle);
+                            setActiveMenu(null);
+                          }}
+                        >
+                          Rename
+                        </button>
+                        <button 
+                          style={{ textAlign: 'left', padding: '8px 16px', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: '#202124', fontSize: '0.9rem' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f3f4'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          onClick={() => {
+                            duplicateDocument(doc.id, user?.name);
+                            setActiveMenu(null);
+                          }}
+                        >
+                          Duplicate
+                        </button>
+                        <button 
+                          style={{ textAlign: 'left', padding: '8px 16px', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', color: '#d93025', fontSize: '0.9rem' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f3f4'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          onClick={() => {
+                            if (confirm('Are you sure you want to remove this document?')) {
+                              deleteDocument(doc.id);
+                            }
+                            setActiveMenu(null);
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
           {filteredDocs.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4rem 0', color: 'var(--text-secondary)' }}>
-              <Folder size={48} color="var(--text-tertiary)" style={{ margin: '0 auto 1rem', opacity: 0.5 }} />
+            <div style={{ textAlign: 'center', padding: '64px 0', color: '#5f6368' }}>
               <p>No documents found.</p>
             </div>
           )}
