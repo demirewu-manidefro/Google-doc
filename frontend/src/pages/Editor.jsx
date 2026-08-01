@@ -274,7 +274,7 @@ const Editor = () => {
         {/* Left Sidebar (Document tabs) */}
         <div style={{
           width: '280px',
-          background: '#ffffff',
+          background: '#f9fbfd',
           display: 'flex',
           flexDirection: 'column',
           padding: '16px',
