@@ -1,33 +1,40 @@
 import { create } from 'zustand';
+import { api } from '../api';
 
 export const useAuthStore = create((set) => ({
   user: null,
   isAuthenticated: false,
-  token: null,
-  login: (userData, token) => {
-    localStorage.setItem('syncwrite_token', token);
-    localStorage.setItem('syncwrite_user', JSON.stringify(userData));
-    set({ user: userData, isAuthenticated: true, token });
+  login: async (email, password) => {
+    try {
+      const data = await api.post('/auth/login', { email, password });
+      localStorage.setItem('token', data.token);
+      set({ user: data.user, isAuthenticated: true });
+    } catch (err) {
+      throw new Error('Invalid credentials');
+    }
+  },
+  register: async (name, email, password) => {
+    try {
+      const data = await api.post('/auth/register', { name, email, password });
+      localStorage.setItem('token', data.token);
+      set({ user: data.user, isAuthenticated: true });
+    } catch (err) {
+      throw new Error('Registration failed');
+    }
   },
   logout: () => {
-    localStorage.removeItem('syncwrite_token');
-    localStorage.removeItem('syncwrite_user');
-    set({ user: null, isAuthenticated: false, token: null });
+    localStorage.removeItem('token');
+    set({ user: null, isAuthenticated: false });
   },
-  checkAuth: () => {
-    const token = localStorage.getItem('syncwrite_token');
-    const userStr = localStorage.getItem('syncwrite_user');
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        set({ user, isAuthenticated: true, token });
-      } catch (e) {
-        localStorage.removeItem('syncwrite_token');
-        localStorage.removeItem('syncwrite_user');
-        set({ user: null, isAuthenticated: false, token: null });
-      }
-    } else {
-      set({ user: null, isAuthenticated: false, token: null });
+  checkAuth: async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const user = await api.get('/auth/me');
+      set({ user, isAuthenticated: true });
+    } catch {
+      localStorage.removeItem('token');
+      set({ user: null, isAuthenticated: false });
     }
-  }
+  },
 }));
