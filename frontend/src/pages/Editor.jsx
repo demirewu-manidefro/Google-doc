@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import TextAlign from '@tiptap/extension-text-align';
-import Underline from '@tiptap/extension-underline';
-import Collaboration from '@tiptap/extension-collaboration';
-import Link from '@tiptap/extension-link';
-import TextStyle from '@tiptap/extension-text-style';
-import FontFamily from '@tiptap/extension-font-family';
+import { StarterKit } from '@tiptap/starter-kit';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { Underline } from '@tiptap/extension-underline';
+import { Collaboration } from '@tiptap/extension-collaboration';
+import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
+import { Link } from '@tiptap/extension-link';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { FontFamily } from '@tiptap/extension-font-family';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { api } from '../api';
@@ -33,6 +34,8 @@ const Editor = () => {
   const [activeSidebar, setActiveSidebar] = useState(null); // 'history', 'comments', null
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [newCommentText, setNewCommentText] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('EDITOR');
 
   const [ydoc] = useState(() => new Y.Doc());
   const [provider] = useState(() => new WebsocketProvider(
@@ -64,7 +67,7 @@ const Editor = () => {
           name: state.user.name,
           color: state.user.color,
         }));
-        
+
       // Filter out self and deduplicate by name for the avatar list
       const currentUserName = user?.name || 'Anonymous';
       const others = users.filter(u => u.name && u.name !== currentUserName);
@@ -86,6 +89,23 @@ const Editor = () => {
     };
   }, [id, navigate, updateTimestamp, ydoc, provider, user?.name]);
 
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    try {
+      const newCollab = await api.post(`/documents/${id}/collaborators`, { email: inviteEmail, role: inviteRole.toUpperCase() });
+      setDocData(prev => ({
+        ...prev,
+        collaborators: [...(prev.collaborators || []), newCollab]
+      }));
+      setInviteEmail('');
+      alert('User invited successfully!');
+    } catch (err) {
+      let msg = err.message;
+      try { const parsed = JSON.parse(err.message); msg = parsed.error; } catch(e){}
+      alert(msg || 'Failed to invite user');
+    }
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -100,6 +120,13 @@ const Editor = () => {
       }),
       Collaboration.configure({
         document: ydoc,
+      }),
+      CollaborationCaret.configure({
+        provider: provider,
+        user: {
+          name: user?.name || 'Anonymous',
+          color: getRandomColor(),
+        }
       }),
       TextStyle,
       FontFamily,
@@ -196,15 +223,15 @@ const Editor = () => {
         {/* Right Side: Actions + Share + Avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
 
-          <button 
-            style={{ background: activeSidebar === 'history' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} 
+          <button
+            style={{ background: activeSidebar === 'history' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }}
             title="Version History"
             onClick={() => setActiveSidebar(activeSidebar === 'history' ? null : 'history')}
           >
             <History size={22} />
           </button>
-          <button 
-            style={{ background: activeSidebar === 'comments' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} 
+          <button
+            style={{ background: activeSidebar === 'comments' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }}
             title="Comments"
             onClick={() => setActiveSidebar(activeSidebar === 'comments' ? null : 'comments')}
           >
@@ -487,8 +514,8 @@ const Editor = () => {
               <span style={{ fontWeight: 500, color: '#1f1f1f', fontSize: '1rem' }}>
                 {activeSidebar === 'history' ? 'Version history' : 'Comments'}
               </span>
-              <button 
-                className="btn-ghost" 
+              <button
+                className="btn-ghost"
                 style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#5f6368', borderRadius: '50%' }}
                 onClick={() => setActiveSidebar(null)}
               >
@@ -523,14 +550,14 @@ const Editor = () => {
               {activeSidebar === 'comments' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ padding: '12px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
-                    <textarea 
+                    <textarea
                       placeholder="Add a comment..."
                       value={newCommentText}
                       onChange={(e) => setNewCommentText(e.target.value)}
                       style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', resize: 'none', minHeight: '60px', fontFamily: 'inherit', fontSize: '0.9rem' }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-                      <button 
+                      <button
                         onClick={async () => {
                           if (newCommentText.trim()) {
                             const newComment = await addComment(id, user?.name || 'Anonymous', newCommentText);
@@ -555,7 +582,7 @@ const Editor = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1f1f1f' }}>{comment.user.name}</span>
                           {!comment.resolved && (
-                            <button 
+                            <button
                               onClick={async () => {
                                 const updatedComment = await resolveComment(id, comment.id);
                                 if (updatedComment) {
@@ -565,7 +592,7 @@ const Editor = () => {
                                   }));
                                 }
                               }}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#5f6368' }} 
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#5f6368' }}
                               title="Mark as resolved">
                               <Check size={16} />
                             </button>
@@ -600,18 +627,43 @@ const Editor = () => {
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
           }} onClick={e => e.stopPropagation()}>
             <h2 style={{ margin: '0 0 16px 0', fontSize: '1.25rem', color: '#1f1f1f' }}>Share "{docTitle}"</h2>
-            
+
             <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-              <input type="email" placeholder="Add people and groups" style={{
-                flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', fontSize: '1rem'
-              }} />
-              <select style={{
-                padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', background: '#f8f9fa', fontSize: '0.9rem'
-              }}>
-                <option value="editor">Editor</option>
-                <option value="commenter">Commenter</option>
-                <option value="viewer">Viewer</option>
+              <input 
+                type="email" 
+                placeholder="Add people and groups" 
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', fontSize: '1rem'
+                }} 
+              />
+              <select 
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value)}
+                style={{
+                  padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', background: '#f8f9fa', fontSize: '0.9rem'
+                }}
+              >
+                <option value="EDITOR">Editor</option>
+                <option value="COMMENTER">Commenter</option>
+                <option value="VIEWER">Viewer</option>
               </select>
+              <button 
+                onClick={handleInvite}
+                disabled={!inviteEmail.trim()}
+                style={{
+                  background: inviteEmail.trim() ? '#1a73e8' : '#dadce0', 
+                  border: 'none', 
+                  borderRadius: '4px', 
+                  padding: '0 16px', 
+                  color: inviteEmail.trim() ? '#fff' : '#80868b', 
+                  fontWeight: 500, 
+                  cursor: inviteEmail.trim() ? 'pointer' : 'default'
+                }}
+              >
+                Send
+              </button>
             </div>
 
             <div style={{ marginBottom: '24px' }}>
