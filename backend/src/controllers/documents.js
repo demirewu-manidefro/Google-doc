@@ -3,7 +3,7 @@ const prisma = require('../prisma');
 exports.getAll = async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     // Get documents owned by user
     const owned = await prisma.document.findMany({
       where: { ownerId: userId },
@@ -66,7 +66,7 @@ exports.getById = async (req, res) => {
     });
 
     if (!document) return res.status(404).json({ error: 'Document not found' });
-    
+
     // Authorization check
     if (document.ownerId !== req.user.id && !document.collaborators.some(c => c.userId === req.user.id)) {
       // Return 403 or add them as a viewer (auto-sharing for prototype purposes? Let's auto-add as editor for this challenge if not owner, just to make testing easy, or keep it strict).
