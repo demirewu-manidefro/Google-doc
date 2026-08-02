@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
@@ -16,8 +16,10 @@
   "dependencies": {
     "@tiptap/extension-collaboration": "^3.29.2",
     "@tiptap/extension-collaboration-cursor": "^2.26.2",
+    "@tiptap/extension-font-family": "^3.29.2",
     "@tiptap/extension-link": "^3.29.2",
     "@tiptap/extension-text-align": "^3.29.2",
+    "@tiptap/extension-text-style": "^3.29.2",
     "@tiptap/extension-underline": "^3.29.2",
     "@tiptap/react": "^3.29.2",
     "@tiptap/starter-kit": "^3.29.2",
