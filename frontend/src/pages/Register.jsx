@@ -8,27 +8,21 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const login = useAuthStore((state) => state.login);
+  const register = useAuthStore((state) => state.register);
   const navigate = useNavigate();
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate API call for now (mocked backend for Phase 1)
-    setTimeout(() => {
-      // Mock user response
-      const mockUser = {
-        id: 'u' + Date.now(),
-        name: name,
-        email: email,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`
-      };
-      
-      login(mockUser, 'mock_jwt_token_123');
+    try {
+      await register(name, email, password);
       setIsLoading(false);
       navigate('/dashboard');
-    }, 1000);
+    } catch (err) {
+      setIsLoading(false);
+      alert('Registration failed: ' + err.message);
+    }
   };
 
   return (

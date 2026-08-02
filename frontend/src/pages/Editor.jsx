@@ -6,9 +6,11 @@ import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
 import Collaboration from '@tiptap/extension-collaboration';
 import Link from '@tiptap/extension-link';
+import TextStyle from '@tiptap/extension-text-style';
+import FontFamily from '@tiptap/extension-font-family';
 import * as Y from 'yjs';
-import { WebrtcProvider } from 'y-webrtc';
-import { IndexeddbPersistence } from 'y-indexeddb';
+import { WebsocketProvider } from 'y-websocket';
+import { api } from '../api';
 import { useAuthStore } from '../store/authStore';
 import { useDocumentStore } from '../store/documentStore';
 import Toolbar from '../components/Toolbar';
@@ -24,30 +26,29 @@ const Editor = () => {
   const { documents, renameDocument, updateTimestamp, addComment, resolveComment } = useDocumentStore();
   const doc = documents.find(d => d.id === id);
 
+  const [docData, setDocData] = useState(null);
   const [status, setStatus] = useState('connecting');
-  const [docTitle, setDocTitle] = useState(doc?.title || 'Untitled document');
+  const [docTitle, setDocTitle] = useState('Loading...');
   const [activeUsers, setActiveUsers] = useState([]);
   const [activeSidebar, setActiveSidebar] = useState(null); // 'history', 'comments', null
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [newCommentText, setNewCommentText] = useState('');
 
   const [ydoc] = useState(() => new Y.Doc());
-  const [provider] = useState(() => new WebrtcProvider(
-    `syncwrite-document-${id}`,
-    ydoc,
-    { signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com'] }
+  const [provider] = useState(() => new WebsocketProvider(
+    'ws://localhost:3001',
+    id,
+    ydoc
   ));
 
   useEffect(() => {
-    if (!doc) {
+    // Fetch document metadata
+    api.get(`/documents/${id}`).then(data => {
+      setDocData(data);
+      setDocTitle(data.title);
+    }).catch(err => {
+      console.error(err);
       navigate('/dashboard');
-      return;
-    }
-
-    // Persist document offline
-    const persistence = new IndexeddbPersistence(`document-${id}`, ydoc);
-    persistence.on('synced', () => {
-      console.log('Document synced with IndexedDB');
     });
 
     provider.on('synced', synced => {
@@ -81,10 +82,9 @@ const Editor = () => {
 
     return () => {
       provider.destroy();
-      persistence.destroy();
       ydoc.destroy();
     };
-  }, [id, doc, navigate, updateTimestamp, ydoc, provider]);
+  }, [id, navigate, updateTimestamp, ydoc, provider, user?.name]);
 
   const editor = useEditor({
     extensions: [
@@ -101,6 +101,8 @@ const Editor = () => {
       Collaboration.configure({
         document: ydoc,
       }),
+      TextStyle,
+      FontFamily,
     ],
     content: `
       <h1>Welcome to SyncWrite Collaborative Editor</h1>
@@ -498,13 +500,13 @@ const Editor = () => {
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
               {activeSidebar === 'history' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {doc?.history?.length > 0 ? (
-                    [...doc.history].reverse().map((entry, idx) => (
+                  {docData?.history?.length > 0 ? (
+                    [...docData.history].reverse().map((entry, idx) => (
                       <div key={entry.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px', background: idx === 0 ? '#e8f0fe' : '#fff', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1f1f1f' }}>{new Date(entry.timestamp).toLocaleString()}</span>
+                          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1f1f1f' }}>{new Date(entry.createdAt).toLocaleString()}</span>
                         </div>
-                        <span style={{ fontSize: '0.85rem', color: '#5f6368' }}>{entry.author}</span>
+                        <span style={{ fontSize: '0.85rem', color: '#5f6368' }}>{entry.user?.name}</span>
                         {idx !== 0 && (
                           <button style={{ alignSelf: 'flex-start', marginTop: '8px', background: 'transparent', border: 'none', color: '#0b57d0', cursor: 'pointer', fontWeight: 500, fontSize: '0.85rem', padding: 0 }}>
                             Restore this version
@@ -529,9 +531,15 @@ const Editor = () => {
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           if (newCommentText.trim()) {
-                            addComment(id, user?.name || 'Anonymous', newCommentText);
+                            const newComment = await addComment(id, user?.name || 'Anonymous', newCommentText);
+                            if (newComment) {
+                              setDocData(prev => ({
+                                ...prev,
+                                comments: [newComment, ...(prev.comments || [])]
+                              }));
+                            }
                             setNewCommentText('');
                           }
                         }}
@@ -541,14 +549,22 @@ const Editor = () => {
                     </div>
                   </div>
 
-                  {doc?.comments?.length > 0 ? (
-                    doc.comments.map(comment => (
+                  {docData?.comments?.length > 0 ? (
+                    docData.comments.map(comment => (
                       <div key={comment.id} style={{ padding: '12px', border: '1px solid #e0e0e0', borderRadius: '8px', opacity: comment.resolved ? 0.6 : 1, position: 'relative' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1f1f1f' }}>{comment.user}</span>
+                          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1f1f1f' }}>{comment.user.name}</span>
                           {!comment.resolved && (
                             <button 
-                              onClick={() => resolveComment(id, comment.id)}
+                              onClick={async () => {
+                                const updatedComment = await resolveComment(id, comment.id);
+                                if (updatedComment) {
+                                  setDocData(prev => ({
+                                    ...prev,
+                                    comments: prev.comments.map(c => c.id === comment.id ? updatedComment : c)
+                                  }));
+                                }
+                              }}
                               style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#5f6368' }} 
                               title="Mark as resolved">
                               <Check size={16} />
@@ -556,7 +572,7 @@ const Editor = () => {
                           )}
                         </div>
                         <div style={{ fontSize: '0.9rem', color: '#3c4043', marginBottom: '8px' }}>{comment.text}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#5f6368' }}>{new Date(comment.timestamp).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#5f6368' }}>{new Date(comment.createdAt).toLocaleDateString()}</div>
                         {comment.resolved && (
                           <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#188038', fontSize: '0.75rem', fontWeight: 500 }}>Resolved</div>
                         )}
@@ -603,11 +619,11 @@ const Editor = () => {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#a8c7fa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#041e49' }}>
-                    {doc?.owner?.charAt(0) || 'O'}
+                    {docData?.owner?.name?.charAt(0) || 'O'}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 500, color: '#1f1f1f' }}>{doc?.owner || 'Owner'} (you)</div>
-                    <div style={{ fontSize: '0.85rem', color: '#5f6368' }}>{doc?.ownerEmail || 'user@example.com'}</div>
+                    <div style={{ fontWeight: 500, color: '#1f1f1f' }}>{docData?.owner?.name || 'Owner'} (you)</div>
+                    <div style={{ fontSize: '0.85rem', color: '#5f6368' }}>{docData?.owner?.email || 'user@example.com'}</div>
                   </div>
                 </div>
                 <span style={{ fontSize: '0.9rem', color: '#5f6368' }}>Owner</span>
