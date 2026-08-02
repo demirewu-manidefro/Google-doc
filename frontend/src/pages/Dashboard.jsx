@@ -28,10 +28,12 @@ const Dashboard = () => {
     navigate('/login');
   };
 
-  const handleCreateDoc = () => {
+  const handleCreateDoc = async () => {
     if (user?.name) {
-      const newId = createDocument(user.name);
-      navigate(`/document/${newId}`);
+      const newId = await createDocument(user.name);
+      if (newId) {
+        navigate(`/document/${newId}`);
+      }
     }
   };
 

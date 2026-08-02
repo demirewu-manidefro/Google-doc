@@ -58,13 +58,13 @@ export const useDocumentStore = create((set, get) => ({
 
   addComment: async (docId, user, text) => {
     try {
-      await api.post(`/documents/${docId}/comments`, { text });
-    } catch (e) { console.error(e); }
+      return await api.post(`/documents/${docId}/comments`, { text });
+    } catch (e) { console.error(e); return null; }
   },
 
   resolveComment: async (docId, commentId) => {
     try {
-      await api.put(`/documents/${docId}/comments/${commentId}/resolve`);
-    } catch (e) { console.error(e); }
+      return await api.put(`/documents/${docId}/comments/${commentId}/resolve`);
+    } catch (e) { console.error(e); return null; }
   }
 }));

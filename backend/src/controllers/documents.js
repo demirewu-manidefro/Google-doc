@@ -57,6 +57,10 @@ exports.getById = async (req, res) => {
         },
         collaborators: {
           include: { user: { select: { name: true, email: true } } }
+        },
+        history: {
+          include: { user: { select: { name: true } } },
+          orderBy: { createdAt: 'desc' }
         }
       }
     });
