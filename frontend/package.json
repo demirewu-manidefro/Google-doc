@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@tiptap/extension-collaboration": "^3.29.2",
-    "@tiptap/extension-collaboration-cursor": "^2.26.2",
+    "@tiptap/extension-collaboration-caret": "^3.29.2",
     "@tiptap/extension-font-family": "^3.29.2",
     "@tiptap/extension-link": "^3.29.2",
     "@tiptap/extension-text-align": "^3.29.2",
