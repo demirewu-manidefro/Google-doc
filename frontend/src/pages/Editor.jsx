@@ -536,20 +536,8 @@ const Editor = () => {
             background: '#f1f3f4',
             position: 'relative'
           }}>
-            {/* A4 Paper Look */}
-            <div className="editor-paper" style={{
-              width: '100%',
-              maxWidth: '816px',
-              background: '#ffffff',
-              minHeight: '1056px',
-              padding: '96px',
-              boxShadow: '0 1px 3px 1px rgba(60,64,67,0.15)',
-              color: '#000000',
-              fontFamily: 'Arial, sans-serif'
-            }}>
-              <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center', transition: 'transform 0.2s', width: '816px', minHeight: '1056px', marginBottom: '400px' }}>
-                <EditorContent editor={editor} className="tiptap-editor" />
-              </div>
+            <div style={{ zoom: zoomLevel, transition: 'zoom 0.2s', width: '816px', minHeight: '1056px', marginBottom: '400px' }}>
+              <EditorContent editor={editor} className="tiptap-editor" />
             </div>
 
             {/* Floating Gemini Prompt Bar */}
