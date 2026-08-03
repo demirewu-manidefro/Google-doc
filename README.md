@@ -16,15 +16,14 @@ SyncWrite is a modern, feature-rich Google Docs clone built with React, Node.js,
 - **Modern Dashboard**: Manage your documents with sections for Recent, Owned, Shared, and Pending Invites.
 
 ## 📸 Screenshots
-
-### Dashboard & Pending Invites
-<img width="637" height="418" alt="image" src="https://github.com/user-attachments/assets/b1ba8256-1b6f-4664-b26a-49101ccab5e2" />
-
+## the blanck document
+<img width="1912" height="917" alt="image" src="https://github.com/user-attachments/assets/e5165dd7-e923-4492-86b3-62a9e3ea6b3f" />
 
 ### Real-Time Editor & Document Outline
 <img width="1920" height="928" alt="image" src="https://github.com/user-attachments/assets/81845706-35e5-4e85-b920-e9e2d6ff114e" />
 
-
+### Dashboard & Pending Invites
+<img width="637" height="418" alt="image" src="https://github.com/user-attachments/assets/b1ba8256-1b6f-4664-b26a-49101ccab5e2" />
 
 ## 🛠️ Tech Stack
 
