@@ -5,15 +5,18 @@
   --bg-primary: #ffffff;
   --bg-secondary: #f8fafc;
   --bg-tertiary: #f1f5f9;
-  
+
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-tertiary: #64748b;
 
-  --accent-primary: #4f46e5; /* Indigo */
-  --accent-secondary: #7c3aed; /* Violet */
-  --accent-tertiary: #db2777; /* Pink */
-  
+  --accent-primary: #4f46e5;
+  /* Indigo */
+  --accent-secondary: #7c3aed;
+  /* Violet */
+  --accent-tertiary: #db2777;
+  /* Pink */
+
   --border-color: rgba(0, 0, 0, 0.08);
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(255, 255, 255, 0.4);
@@ -53,13 +56,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   overflow-x: hidden;
-  background-image: 
+  background-image:
     radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
     radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.08) 0%, transparent 50%);
   background-attachment: fixed;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: 'Outfit', sans-serif;
   font-weight: 700;
   line-height: 1.2;
@@ -148,7 +156,7 @@ ul {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
   transition: all 0.5s ease;
 }
 
@@ -230,8 +238,15 @@ ul {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fade-in {
@@ -257,18 +272,59 @@ ul {
   background: var(--accent-primary);
 }
 
-/* Tiptap Editor Styles */
 .tiptap-editor {
   outline: none;
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
 }
 
 .tiptap-editor .ProseMirror {
   outline: none;
-  min-height: 800px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  width: 816px;
+  max-width: 100%;
+  min-height: 1056px;
+  margin: 0 auto;
+  padding: 96px; /* 1 inch margins */
+  box-sizing: border-box;
+
+  /* Transparent base to allow visual pages */
+  background-color: transparent;
+
+  /* Draw A4 pages (1056px tall) with 24px gaps */
+  background-image: linear-gradient(
+    to bottom,
+    #ffffff 0px,
+    #ffffff 1056px,
+    transparent 1056px,
+    transparent 1080px
+  );
+  background-size: 100% 1080px;
+  background-repeat: repeat-y;
+
+  /* Shadow applies to the opaque white pages */
+  filter: drop-shadow(0 1px 3px rgba(60,64,67,0.15));
 }
 
-.tiptap-editor .ProseMirror > * + * {
+.tiptap-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Let PaginationPlus handle pushing text down */
+.rm-br-decoration {
+  display: block !important;
+  height: 24px !important;
+  width: calc(100% + 192px) !important;
+  margin-left: -96px !important; /* to cover the padding */
+  background-color: transparent !important;
+  border: none !important;
+}
+
+.tiptap-editor .ProseMirror>*+* {
   margin-top: 0.75em;
 }
 
@@ -318,12 +374,16 @@ ul {
   content: "";
   position: absolute;
   top: 100%;
-  left: -1px;
+  left: -2px;
   width: 14px;
   height: 20px;
   background-color: inherit;
-  clip-path: polygon(0 0, 0 100%, 25% 75%, 50% 100%, 70% 90%, 45% 65%, 90% 65%);
-  -webkit-clip-path: polygon(0 0, 0 100%, 25% 75%, 50% 100%, 70% 90%, 45% 65%, 90% 65%);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4.09 0L4 25.13l7.26-6.86 5.86 11.23 4.29-2.22-5.78-11.24L24.32 14z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4.09 0L4 25.13l7.26-6.86 5.86 11.23 4.29-2.22-5.78-11.24L24.32 14z'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 
 /* Track Changes (Suggesting Mode) */

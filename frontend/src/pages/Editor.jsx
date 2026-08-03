@@ -21,6 +21,42 @@ import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cl
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FDFB', '#BFDF8A'];
 const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
 
+
+import { Extension } from '@tiptap/core';
+import { PaginationPlus } from 'tiptap-pagination-plus';
+
+// Extension to fix backspace not bringing text up in Suggesting Mode
+const BackspaceJoinFix = Extension.create({
+  name: 'backspaceJoinFix',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    return {
+      Backspace: ({ editor }) => {
+        const { state } = editor;
+        const { selection } = state;
+        if (!selection.empty) return false;
+        
+        const { $from } = selection;
+        
+        if ($from.parentOffset === 0) {
+           const currentMode = editor.extensionManager.extensions.find(e => e.name === 'trackChanges')?.options?.mode || 'suggest';
+           
+           try {
+             editor.commands.setTrackChangesMode('edit');
+             const handled = editor.commands.joinBackward();
+             editor.commands.setTrackChangesMode(currentMode);
+             
+             if (handled) return true;
+           } catch(e) {
+             editor.commands.setTrackChangesMode(currentMode);
+           }
+        }
+        return false;
+      },
+    };
+  },
+});
+
 const Editor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -38,6 +74,7 @@ const Editor = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('EDITOR');
   const [isSuggestingMode, setIsSuggestingMode] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(1);
   const userColor = useRef(getRandomColor());
 
   const [ydoc] = useState(() => new Y.Doc());
@@ -139,6 +176,20 @@ const Editor = () => {
         },
         mode: 'edit', // Will be toggled programmatically
       }),
+      BackspaceJoinFix,
+      PaginationPlus.configure({
+        pageHeight: 1056,
+        pageWidth: 816,
+        marginTop: 96,
+        marginBottom: 96,
+        marginLeft: 96,
+        marginRight: 96,
+        contentMarginTop: 0,
+        contentMarginBottom: 0,
+        pageGap: 24,
+        pageGapBorderSize: 1,
+        pageGapBorderColor: '#e5e7eb',
+      }),
       TextStyle,
       FontFamily,
     ],
@@ -156,14 +207,14 @@ const Editor = () => {
   }, [isSuggestingMode, editor]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f9fbfd', fontFamily: '"Google Sans", Roboto, Arial, sans-serif' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f1f3f4', fontFamily: '"Google Sans", Roboto, Arial, sans-serif' }}>
       {/* Header */}
       <header style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         padding: '8px 16px',
-        background: '#f9fbfd',
+        background: '#f1f3f4',
         zIndex: 10
       }}>
         {/* Left Side: Icon + Title + Menu */}
@@ -386,7 +437,7 @@ const Editor = () => {
             color: '#041e49',
             fontWeight: 'bold',
             border: '2px solid transparent',
-            backgroundImage: 'linear-gradient(#f9fbfd, #f9fbfd), conic-gradient(from 0deg, #ea4335 0deg, #fbbc04 90deg, #34a853 180deg, #4285f4 270deg, #ea4335 360deg)',
+            backgroundImage: 'linear-gradient(#f1f3f4, #f1f3f4), conic-gradient(from 0deg, #ea4335 0deg, #fbbc04 90deg, #34a853 180deg, #4285f4 270deg, #ea4335 360deg)',
             backgroundOrigin: 'border-box',
             backgroundClip: 'content-box, border-box'
           }}>
@@ -396,7 +447,7 @@ const Editor = () => {
       </header>
 
       {/* Toolbar Area (Full Width) */}
-      <Toolbar editor={editor} />
+      <Toolbar editor={editor} zoomLevel={zoomLevel} setZoomLevel={setZoomLevel} />
 
       {/* Editor Main Area */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -404,7 +455,7 @@ const Editor = () => {
         {/* Left Sidebar (Document tabs) */}
         <div style={{
           width: '280px',
-          background: '#f9fbfd',
+          background: '#f1f3f4',
           display: 'flex',
           flexDirection: 'column',
           padding: '12px 16px',
@@ -444,12 +495,12 @@ const Editor = () => {
         </div>
 
         {/* Main Content Area (Ruler + Paper) */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f9fbfd' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f1f3f4' }}>
 
           {/* Mock Ruler */}
           <div style={{
             height: '24px',
-            background: '#f9fbfd',
+            background: '#f1f3f4',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'flex-end',
@@ -482,7 +533,7 @@ const Editor = () => {
             flexDirection: 'column',
             alignItems: 'center',
             padding: '0px 16px 80px 16px',
-            background: '#f9fbfd',
+            background: '#f1f3f4',
             position: 'relative'
           }}>
             {/* A4 Paper Look */}
@@ -496,7 +547,9 @@ const Editor = () => {
               color: '#000000',
               fontFamily: 'Arial, sans-serif'
             }}>
-              <EditorContent editor={editor} className="tiptap-editor" />
+              <div style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center', transition: 'transform 0.2s', width: '816px', minHeight: '1056px', marginBottom: '400px' }}>
+                <EditorContent editor={editor} className="tiptap-editor" />
+              </div>
             </div>
 
             {/* Floating Gemini Prompt Bar */}
