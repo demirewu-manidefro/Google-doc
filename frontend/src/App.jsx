@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Editor from './pages/Editor';
+import AcceptInvite from './pages/AcceptInvite';
 import { useAuthStore } from './store/authStore';
 import { useEffect } from 'react';
 
@@ -46,7 +47,15 @@ function App() {
             </ProtectedRoute>
           } 
         />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route 
+          path="/accept-invite/:id" 
+          element={
+            <ProtectedRoute>
+              <AcceptInvite />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </Router>
   );

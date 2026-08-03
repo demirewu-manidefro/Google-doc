@@ -40,14 +40,20 @@ enum Role {
   EDITOR
 }
 
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+}
+
 model Collaborator {
   id         String   @id @default(uuid())
   documentId String
   userId     String
-  role       Role     @default(VIEWER)
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  addedAt    DateTime @default(now())
+  role       Role         @default(VIEWER)
+  status     InviteStatus @default(PENDING)
+  document   Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedAt    DateTime     @default(now())
 
   @@unique([documentId, userId])
 }

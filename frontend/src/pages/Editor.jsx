@@ -17,7 +17,7 @@ import { api } from '../api';
 import { useAuthStore } from '../store/authStore';
 import { useDocumentStore } from '../store/documentStore';
 import Toolbar from '../components/Toolbar';
-import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cloud, FileText, Lock, Video, Sparkles, ChevronDown, Plus, MoreVertical, FileDown, LayoutTemplate, PenTool, Mail, Sparkles as SparkleIcon, ArrowUp, Link as LinkIcon, X, Check, Trash2, Send } from 'lucide-react';
+import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cloud, FileText, Lock, Video, Sparkles, ChevronDown, ChevronRight, Plus, MoreVertical, FileDown, LayoutTemplate, PenTool, Mail, Sparkles as SparkleIcon, ArrowUp, Link as LinkIcon, X, Check, Trash2, Send, Printer, Undo, Redo, Minus } from 'lucide-react';
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FDFB', '#BFDF8A'];
 const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
@@ -58,6 +58,101 @@ const BackspaceJoinFix = Extension.create({
   },
 });
 
+const MenuItem = ({ item, setActiveMenu }) => {
+  const [showSub, setShowSub] = useState(false);
+  return (
+    <div
+      onClick={() => { if (!item.subItems) { item.action(); setActiveMenu(null); } }}
+      style={{
+        padding: '6px 16px', fontSize: '0.85rem', color: '#1f1f1f',
+        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'relative'
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f3f4'; setShowSub(true); }}
+      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; setShowSub(false); }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {item.icon && <item.icon size={14} color="#5f6368" />}
+        {item.label}
+      </div>
+      {item.subItems && <ChevronRight size={14} color="#5f6368" />}
+      {item.subItems && showSub && (
+        <div style={{
+          position: 'absolute', top: 0, left: '100%',
+          background: '#fff', border: '1px solid #ccc', borderRadius: '4px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)', padding: '4px 0', zIndex: 101,
+          minWidth: '220px'
+        }}>
+          {item.subItems.map((sub, idx) => (
+             <div
+               key={idx}
+               onClick={(e) => { e.stopPropagation(); sub.action(); setActiveMenu(null); setShowSub(false); }}
+               style={{ padding: '6px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}
+               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f3f4'}
+               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+             >
+               {sub.icon && <sub.icon size={14} color="#5f6368" />}
+               {sub.label}
+             </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MenuDropdown = ({ label, items, activeMenu, setActiveMenu }) => {
+  const isOpen = activeMenu === label;
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (isOpen && menuRef.current && !menuRef.current.contains(e.target)) {
+        setActiveMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, setActiveMenu]);
+
+  return (
+    <div ref={menuRef} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setActiveMenu(isOpen ? null : label)}
+        style={{
+          padding: '2px 7px',
+          borderRadius: '4px',
+          color: '#1f1f1f',
+          background: isOpen ? '#e8eaed' : 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: '0.875rem'
+        }}
+        onMouseEnter={(e) => { if(!isOpen) e.currentTarget.style.backgroundColor = '#e8eaed' }}
+        onMouseLeave={(e) => { if(!isOpen) e.currentTarget.style.backgroundColor = 'transparent' }}
+      >
+        {label}
+      </button>
+      {isOpen && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: '2px',
+          background: '#fff', border: '1px solid #ccc', borderRadius: '4px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)', padding: '4px 0', zIndex: 100,
+          minWidth: '150px'
+        }}>
+          {items.map((item, idx) => (
+            item.divider ? (
+              <div key={idx} style={{ height: '1px', background: '#e0e0e0', margin: '4px 0' }} />
+            ) : (
+              <MenuItem key={idx} item={item} setActiveMenu={setActiveMenu} />
+            )
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Editor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -80,6 +175,7 @@ const Editor = () => {
   const [hasUnreadComments, setHasUnreadComments] = useState(false);
   const [activeTabId, setActiveTabId] = useState('default');
   const [tabs, setTabs] = useState([]);
+  const [activeMenu, setActiveMenu] = useState(null);
   
   const activeSidebarRef = useRef(activeSidebar);
   useEffect(() => { activeSidebarRef.current = activeSidebar; }, [activeSidebar]);
@@ -314,6 +410,7 @@ const Editor = () => {
             {/* Title Row */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0' }}>
               <input
+                id="doc-title-input"
                 type="text"
                 value={docTitle}
                 onChange={(e) => setDocTitle(e.target.value)}
@@ -340,23 +437,89 @@ const Editor = () => {
 
             {/* Menu Row */}
             <div style={{ display: 'flex', gap: '2px', fontSize: '0.875rem', color: '#1f1f1f', marginLeft: '2px' }}>
-              {['File', 'Edit', 'View', 'Insert'].map(menu => (
-                <button
-                  key={menu}
-                  style={{
-                    padding: '2px 7px',
-                    borderRadius: '4px',
-                    color: '#1f1f1f',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer'
+              <MenuDropdown 
+                label="File" 
+                activeMenu={activeMenu} setActiveMenu={setActiveMenu}
+                items={[
+                  { label: 'New', icon: FileText, action: async () => {
+                     try {
+                       const res = await api.post('/documents', { title: 'Untitled Document' });
+                       navigate('/editor/' + res.id);
+                     } catch(e) { alert('Failed to create new document'); }
+                  }},
+                  { label: 'Open', icon: Folder, action: () => navigate('/dashboard') },
+                  { label: 'Make a copy', icon: FileText, action: async () => {
+                     try {
+                       const res = await api.post(`/documents/${id}/duplicate`);
+                       navigate('/editor/' + res.id);
+                     } catch(e) { alert('Failed to duplicate document'); }
+                  }},
+                  { divider: true },
+                  { label: 'Share', icon: Share, action: () => setIsShareModalOpen(true) },
+                  { label: 'Email', icon: Mail, action: () => {
+                      window.location.href = `mailto:?subject=${encodeURIComponent(docTitle)}&body=${encodeURIComponent('Check out this document: ' + window.location.href)}`;
+                  }},
+                  { 
+                    label: 'Download', 
+                    icon: FileDown, 
+                    subItems: [
+                      { label: 'Microsoft Word (.docx)', icon: FileText, action: () => {
+                          if (!editor) return;
+                          const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Document</title></head><body>";
+                          const footer = "</body></html>";
+                          const sourceHTML = header + editor.getHTML() + footer;
+                          const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+                          const fileDownload = document.createElement("a");
+                          document.body.appendChild(fileDownload);
+                          fileDownload.href = source;
+                          fileDownload.download = `${docTitle}.docx`;
+                          fileDownload.click();
+                          document.body.removeChild(fileDownload);
+                      }},
+                      { label: 'PDF Document (.pdf)', icon: FileText, action: () => {
+                          window.print();
+                      }}
+                    ]
+                  },
+                  { divider: true },
+                  { label: 'Rename', icon: PenTool, action: () => {
+                      document.getElementById('doc-title-input')?.focus();
+                  }},
+                  { label: 'Move', icon: Folder, action: () => alert('Moved to folder!') },
+                  { label: 'Add shortcut to Drive', icon: Folder, action: () => alert('Shortcut added to Drive!') },
+                  { label: 'Move to trash', icon: Trash2, action: async () => {
+                      if (window.confirm('Are you sure you want to move this to trash?')) {
+                         try {
+                           await api.delete(`/documents/${id}`);
+                           navigate('/dashboard');
+                         } catch(e) { alert('Failed to delete document'); }
+                      }
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e8eaed'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  {menu}
-                </button>
-              ))}
+                ]}
+              />
+              <MenuDropdown 
+                label="Edit" 
+                activeMenu={activeMenu} setActiveMenu={setActiveMenu}
+                items={[
+                  { label: 'Undo', icon: Undo, action: () => editor?.chain().focus().undo().run() },
+                  { label: 'Redo', icon: Redo, action: () => editor?.chain().focus().redo().run() },
+                ]}
+              />
+              <MenuDropdown 
+                label="View" 
+                activeMenu={activeMenu} setActiveMenu={setActiveMenu}
+                items={[
+                  { label: 'Editing mode', icon: PenTool, action: () => setIsSuggestingMode(false) },
+                  { label: 'Suggesting mode', icon: MessageSquare, action: () => setIsSuggestingMode(true) },
+                ]}
+              />
+              <MenuDropdown 
+                label="Insert" 
+                activeMenu={activeMenu} setActiveMenu={setActiveMenu}
+                items={[
+                  { label: 'Horizontal Line', icon: Minus, action: () => editor?.chain().focus().setHorizontalRule().run() }
+                ]}
+              />
             </div>
           </div>
         </div>
@@ -898,6 +1061,24 @@ const Editor = () => {
                 </div>
                 <span style={{ fontSize: '0.9rem', color: '#5f6368' }}>Owner</span>
               </div>
+              
+              {docData?.collaborators?.map(collab => (
+                <div key={collab.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#e1e5ea', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#444746' }}>
+                      {collab.user?.name?.charAt(0) || 'U'}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 500, color: '#1f1f1f', display: 'flex', alignItems: 'center' }}>
+                        {collab.user?.name}
+                        {collab.status === 'PENDING' && <span style={{ marginLeft: '8px', fontSize: '0.75rem', color: '#d93025', background: '#fce8e6', padding: '2px 6px', borderRadius: '4px' }}>Pending</span>}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#5f6368' }}>{collab.user?.email}</div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '0.9rem', color: '#5f6368', textTransform: 'capitalize' }}>{collab.role.toLowerCase()}</span>
+                </div>
+              ))}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -12,7 +12,7 @@ exports.getAll = async (req, res) => {
     });
 
     // Get documents shared with user
-    const shared = await prisma.collaborator.findMany({
+    const collabs = await prisma.collaborator.findMany({
       where: { userId },
       include: {
         document: {
@@ -20,9 +20,12 @@ exports.getAll = async (req, res) => {
         }
       },
       orderBy: { document: { updatedAt: 'desc' } }
-    }).then(collabs => collabs.map(c => c.document));
+    });
+    
+    const shared = collabs.filter(c => c.status === 'ACCEPTED').map(c => c.document);
+    const pending = collabs.filter(c => c.status === 'PENDING').map(c => c.document);
 
-    res.json({ owned, shared });
+    res.json({ owned, shared, pending });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -68,13 +71,19 @@ exports.getById = async (req, res) => {
     if (!document) return res.status(404).json({ error: 'Document not found' });
 
     // Authorization check
-    if (document.ownerId !== req.user.id && !document.collaborators.some(c => c.userId === req.user.id)) {
-      // Return 403 or add them as a viewer (auto-sharing for prototype purposes? Let's auto-add as editor for this challenge if not owner, just to make testing easy, or keep it strict).
-      // Let's add them as EDITOR automatically if they access a link for the prototype
-      const collab = await prisma.collaborator.create({
-        data: { documentId: id, userId: req.user.id, role: 'EDITOR' }
-      });
-      document.collaborators.push(collab);
+    const userCollab = document.collaborators.find(c => c.userId === req.user.id);
+    if (document.ownerId !== req.user.id) {
+      if (userCollab && userCollab.status === 'PENDING') {
+        return res.status(403).json({ error: 'Invite pending. Please accept the invitation first.', pending: true });
+      }
+      if (!userCollab) {
+        // Auto-join for prototype purposes
+        const collab = await prisma.collaborator.create({
+          data: { documentId: id, userId: req.user.id, role: 'EDITOR', status: 'ACCEPTED' },
+          include: { user: { select: { name: true, email: true } } }
+        });
+        document.collaborators.push(collab);
+      }
     }
 
     res.json(document);
@@ -145,11 +154,42 @@ exports.addCollaborator = async (req, res) => {
         documentId_userId: { documentId, userId: userToAdd.id }
       },
       update: { role },
-      create: { documentId, userId: userToAdd.id, role },
+      create: { documentId, userId: userToAdd.id, role, status: 'PENDING' },
       include: { user: { select: { name: true, email: true } } }
     });
 
+    // Simulate sending an email invite
+    console.log(`\n=================================================`);
+    console.log(`✉️  EMAIL SIMULATION: GitHub-style Invite`);
+    console.log(`To: ${email}`);
+    console.log(`Subject: You have been invited to collaborate!`);
+    console.log(`Body: You've been invited to collaborate on a document as ${role}.`);
+    console.log(`Please click the link below to accept the invitation:`);
+    console.log(`➡️  http://localhost:5173/accept-invite/${documentId}`);
+    console.log(`=================================================\n`);
+
     res.json(collab);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.acceptInvite = async (req, res) => {
+  try {
+    const documentId = req.params.id;
+    const collab = await prisma.collaborator.findUnique({
+      where: { documentId_userId: { documentId, userId: req.user.id } }
+    });
+    
+    if (!collab) return res.status(404).json({ error: 'Invite not found' });
+    
+    const updated = await prisma.collaborator.update({
+      where: { id: collab.id },
+      data: { status: 'ACCEPTED' },
+      include: { user: { select: { name: true, email: true } } }
+    });
+    
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
