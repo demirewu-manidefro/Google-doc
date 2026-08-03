@@ -288,27 +288,57 @@ ul {
 }
 
 /* Collaboration Cursors */
+/* Collaboration Cursors */
 .collaboration-cursor__caret {
-  border-left: 2px solid #0d0d0d;
-  border-right: 2px solid #0d0d0d;
-  margin-left: -2px;
-  margin-right: -2px;
+  border-left: 1px solid;
+  border-right: 1px solid transparent;
+  margin-left: -1px;
+  margin-right: -1px;
   pointer-events: none;
   position: relative;
   word-break: normal;
 }
 
 .collaboration-cursor__label {
-  border-radius: 4px;
+  border-radius: 4px 4px 4px 0;
   color: #fff;
   font-size: 12px;
   font-style: normal;
   font-weight: 600;
-  left: -2px;
+  left: -1px;
   line-height: normal;
   padding: 2px 6px;
   position: absolute;
-  top: -1.8em;
+  top: -1.4em;
   user-select: none;
   white-space: nowrap;
+}
+
+.collaboration-cursor__label::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: -1px;
+  width: 14px;
+  height: 20px;
+  background-color: inherit;
+  clip-path: polygon(0 0, 0 100%, 25% 75%, 50% 100%, 70% 90%, 45% 65%, 90% 65%);
+  -webkit-clip-path: polygon(0 0, 0 100%, 25% 75%, 50% 100%, 70% 90%, 45% 65%, 90% 65%);
+}
+
+/* Track Changes (Suggesting Mode) */
+.tiptap-editor ins {
+  text-decoration: none;
+  background-color: color-mix(in srgb, var(--author-color, #0a57d0) 25%, transparent);
+  border-bottom: 2px solid var(--author-color, #0a57d0);
+  border-radius: 2px;
+}
+
+.tiptap-editor del {
+  text-decoration: line-through;
+  text-decoration-color: var(--author-color, #d93025);
+  text-decoration-thickness: 2px;
+  background-color: color-mix(in srgb, var(--author-color, #d93025) 15%, transparent);
+  opacity: 0.6;
+  border-radius: 2px;
 }
