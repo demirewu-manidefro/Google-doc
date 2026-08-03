@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { FileText, ArrowRight, Lock, Mail, User } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -96,10 +97,33 @@ const Register = () => {
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginBottom: '1.5rem' }} disabled={isLoading}>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={isLoading}>
             {isLoading ? 'Creating account...' : 'Sign Up'}
             {!isLoading && <ArrowRight size={18} />}
           </button>
+
+          <div style={{ margin: '1.5rem 0', display: 'flex', alignItems: 'center', color: 'var(--text-tertiary)' }}>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(0,0,0,0.1)' }} />
+            <span style={{ padding: '0 1rem', fontSize: '0.85rem' }}>Or continue with</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(0,0,0,0.1)' }} />
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                try {
+                  setIsLoading(true);
+                  await useAuthStore.getState().googleLogin(credentialResponse.credential);
+                  setIsLoading(false);
+                  navigate('/dashboard');
+                } catch (err) {
+                  setIsLoading(false);
+                  alert(err.message);
+                }
+              }}
+              onError={() => alert('Google Sign-In failed')}
+            />
+          </div>
         </form>
 
         <div style={{ textAlign: 'center', fontSize: '0.9rem' }}>

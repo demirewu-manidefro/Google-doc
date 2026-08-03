@@ -13,6 +13,15 @@ export const useAuthStore = create((set) => ({
       throw new Error('Invalid credentials');
     }
   },
+  googleLogin: async (token) => {
+    try {
+      const data = await api.post('/auth/google', { token });
+      localStorage.setItem('token', data.token);
+      set({ user: data.user, isAuthenticated: true });
+    } catch (err) {
+      throw new Error('Google authentication failed');
+    }
+  },
   register: async (name, email, password) => {
     try {
       const data = await api.post('/auth/register', { name, email, password });
