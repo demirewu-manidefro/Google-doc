@@ -159,14 +159,21 @@ exports.addCollaborator = async (req, res) => {
 exports.addComment = async (req, res) => {
   try {
     const { text } = req.body;
+    const documentId = req.params.id;
     const comment = await prisma.comment.create({
       data: {
-        documentId: req.params.id,
+        documentId,
         userId: req.user.id,
         text
       },
       include: { user: { select: { name: true } } }
     });
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.to(documentId).emit('comment_added', comment);
+    }
+    
     res.json(comment);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -177,8 +184,15 @@ exports.resolveComment = async (req, res) => {
   try {
     const comment = await prisma.comment.update({
       where: { id: req.params.commentId },
-      data: { resolved: true }
+      data: { resolved: true },
+      include: { user: { select: { name: true } } }
     });
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.to(comment.documentId).emit('comment_resolved', comment);
+    }
+    
     res.json(comment);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -187,7 +201,17 @@ exports.resolveComment = async (req, res) => {
 
 exports.deleteComment = async (req, res) => {
   try {
-    await prisma.comment.delete({ where: { id: req.params.commentId } });
+    const commentId = req.params.commentId;
+    const comment = await prisma.comment.findUnique({ where: { id: commentId } });
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+    
+    await prisma.comment.delete({ where: { id: commentId } });
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.to(comment.documentId).emit('comment_deleted', commentId);
+    }
+    
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -66,5 +66,12 @@ export const useDocumentStore = create((set, get) => ({
     try {
       return await api.put(`/documents/${docId}/comments/${commentId}/resolve`);
     } catch (e) { console.error(e); return null; }
+  },
+
+  deleteComment: async (docId, commentId) => {
+    try {
+      await api.delete(`/documents/${docId}/comments/${commentId}`);
+      return true;
+    } catch (e) { console.error(e); return false; }
   }
 }));

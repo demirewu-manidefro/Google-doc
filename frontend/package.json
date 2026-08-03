@@ -14,6 +14,7 @@
     "vite": "^8.2.0"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.13.5",
     "@tiptap/extension-collaboration": "^3.29.2",
     "@tiptap/extension-collaboration-caret": "^3.29.2",
     "@tiptap/extension-font-family": "^3.29.2",
@@ -30,6 +31,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
+    "socket.io-client": "^4.8.3",
     "tiptap-pagination-plus": "^3.1.0",
     "tiptap-track-changes": "^0.2.1",
     "y-indexeddb": "^9.0.12",
