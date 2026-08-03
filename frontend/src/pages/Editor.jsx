@@ -11,6 +11,7 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { FontFamily } from '@tiptap/extension-font-family';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
+import { TrackChangesExtension } from 'tiptap-track-changes';
 import { api } from '../api';
 import { useAuthStore } from '../store/authStore';
 import { useDocumentStore } from '../store/documentStore';
@@ -36,6 +37,8 @@ const Editor = () => {
   const [newCommentText, setNewCommentText] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('EDITOR');
+  const [isSuggestingMode, setIsSuggestingMode] = useState(true);
+  const userColor = useRef(getRandomColor());
 
   const [ydoc] = useState(() => new Y.Doc());
   const [provider] = useState(() => new WebsocketProvider(
@@ -125,17 +128,32 @@ const Editor = () => {
         provider: provider,
         user: {
           name: user?.name || 'Anonymous',
-          color: getRandomColor(),
+          color: userColor.current,
         }
+      }),
+      TrackChangesExtension.configure({
+        author: {
+          id: user?.id || Math.random().toString(),
+          name: user?.name || 'Anonymous',
+          color: userColor.current,
+        },
+        mode: 'edit', // Will be toggled programmatically
       }),
       TextStyle,
       FontFamily,
     ],
-    content: `
-      <h1>Welcome to SyncWrite Collaborative Editor</h1>
-      <p>This is a real-time collaborative document editor. Try opening this URL in another tab!</p>
-    `,
   });
+
+  // Effect to sync Suggesting Mode with Editor
+  useEffect(() => {
+    if (editor) {
+      if (isSuggestingMode) {
+        editor.commands.setTrackChangesMode('suggest');
+      } else {
+        editor.commands.setTrackChangesMode('edit');
+      }
+    }
+  }, [isSuggestingMode, editor]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f9fbfd', fontFamily: '"Google Sans", Roboto, Arial, sans-serif' }}>
@@ -295,6 +313,44 @@ const Editor = () => {
               <ChevronDown size={16} />
             </button>
           </div>
+
+          {/* Suggesting Mode Toggle */}
+          <div style={{ display: 'flex', background: isSuggestingMode ? '#e8f0fe' : 'transparent', borderRadius: '4px', padding: '2px' }}>
+            <button 
+              onClick={() => setIsSuggestingMode(!isSuggestingMode)}
+              style={{ background: isSuggestingMode ? '#d3e3fd' : 'transparent', border: 'none', padding: '6px 12px', color: isSuggestingMode ? '#0b57d0' : '#444746', cursor: 'pointer', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Suggesting Mode"
+            >
+              <PenTool size={16} />
+              {isSuggestingMode ? 'Suggesting' : 'Editing'}
+            </button>
+          </div>
+
+          <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', height: '24px', margin: '0 8px' }} />
+
+          {/* Accept / Reject Changes (If any) */}
+          <button 
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (editor) editor.commands.acceptAll();
+            }}
+            style={{ background: 'transparent', border: 'none', padding: '6px', color: '#188038', cursor: 'pointer', borderRadius: '4px' }}
+            title="Accept All Suggestions"
+          >
+            <Check size={18} />
+          </button>
+          <button 
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (editor) editor.commands.rejectAll();
+            }}
+            style={{ background: 'transparent', border: 'none', padding: '6px', color: '#d93025', cursor: 'pointer', borderRadius: '4px' }}
+            title="Reject All Suggestions"
+          >
+            <X size={18} />
+          </button>
+
+          <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', height: '24px', margin: '0 8px' }} />
 
           {/* Gemini Icon */}
           <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#1a73e8', cursor: 'pointer', borderRadius: '50%' }}>
