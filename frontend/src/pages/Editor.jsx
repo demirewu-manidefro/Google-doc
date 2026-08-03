@@ -1,15 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import TextAlign from '@tiptap/extension-text-align';
-import Underline from '@tiptap/extension-underline';
-import Collaboration from '@tiptap/extension-collaboration';
-import Link from '@tiptap/extension-link';
-import TextStyle from '@tiptap/extension-text-style';
-import FontFamily from '@tiptap/extension-font-family';
+import { StarterKit } from '@tiptap/starter-kit';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { Underline } from '@tiptap/extension-underline';
+import { Collaboration } from '@tiptap/extension-collaboration';
+import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
+import { Link } from '@tiptap/extension-link';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { FontFamily } from '@tiptap/extension-font-family';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
+import { TrackChangesExtension } from 'tiptap-track-changes';
 import { api } from '../api';
 import { useAuthStore } from '../store/authStore';
 import { useDocumentStore } from '../store/documentStore';
@@ -18,6 +20,42 @@ import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cl
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FDFB', '#BFDF8A'];
 const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
+
+
+import { Extension } from '@tiptap/core';
+import { PaginationPlus } from 'tiptap-pagination-plus';
+
+// Extension to fix backspace not bringing text up in Suggesting Mode
+const BackspaceJoinFix = Extension.create({
+  name: 'backspaceJoinFix',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    return {
+      Backspace: ({ editor }) => {
+        const { state } = editor;
+        const { selection } = state;
+        if (!selection.empty) return false;
+        
+        const { $from } = selection;
+        
+        if ($from.parentOffset === 0) {
+           const currentMode = editor.extensionManager.extensions.find(e => e.name === 'trackChanges')?.options?.mode || 'suggest';
+           
+           try {
+             editor.commands.setTrackChangesMode('edit');
+             const handled = editor.commands.joinBackward();
+             editor.commands.setTrackChangesMode(currentMode);
+             
+             if (handled) return true;
+           } catch(e) {
+             editor.commands.setTrackChangesMode(currentMode);
+           }
+        }
+        return false;
+      },
+    };
+  },
+});
 
 const Editor = () => {
   const { id } = useParams();
@@ -33,6 +71,11 @@ const Editor = () => {
   const [activeSidebar, setActiveSidebar] = useState(null); // 'history', 'comments', null
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [newCommentText, setNewCommentText] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('EDITOR');
+  const [isSuggestingMode, setIsSuggestingMode] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const userColor = useRef(getRandomColor());
 
   const [ydoc] = useState(() => new Y.Doc());
   const [provider] = useState(() => new WebsocketProvider(
@@ -64,7 +107,7 @@ const Editor = () => {
           name: state.user.name,
           color: state.user.color,
         }));
-        
+
       // Filter out self and deduplicate by name for the avatar list
       const currentUserName = user?.name || 'Anonymous';
       const others = users.filter(u => u.name && u.name !== currentUserName);
@@ -86,6 +129,23 @@ const Editor = () => {
     };
   }, [id, navigate, updateTimestamp, ydoc, provider, user?.name]);
 
+  const handleInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    try {
+      const newCollab = await api.post(`/documents/${id}/collaborators`, { email: inviteEmail, role: inviteRole.toUpperCase() });
+      setDocData(prev => ({
+        ...prev,
+        collaborators: [...(prev.collaborators || []), newCollab]
+      }));
+      setInviteEmail('');
+      alert('User invited successfully!');
+    } catch (err) {
+      let msg = err.message;
+      try { const parsed = JSON.parse(err.message); msg = parsed.error; } catch(e){}
+      alert(msg || 'Failed to invite user');
+    }
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -101,24 +161,60 @@ const Editor = () => {
       Collaboration.configure({
         document: ydoc,
       }),
+      CollaborationCaret.configure({
+        provider: provider,
+        user: {
+          name: user?.name || 'Anonymous',
+          color: userColor.current,
+        }
+      }),
+      TrackChangesExtension.configure({
+        author: {
+          id: user?.id || Math.random().toString(),
+          name: user?.name || 'Anonymous',
+          color: userColor.current,
+        },
+        mode: 'edit', // Will be toggled programmatically
+      }),
+      BackspaceJoinFix,
+      PaginationPlus.configure({
+        pageHeight: 1056,
+        pageWidth: 816,
+        marginTop: 96,
+        marginBottom: 96,
+        marginLeft: 96,
+        marginRight: 96,
+        contentMarginTop: 0,
+        contentMarginBottom: 0,
+        pageGap: 24,
+        pageGapBorderSize: 1,
+        pageGapBorderColor: '#e5e7eb',
+      }),
       TextStyle,
       FontFamily,
     ],
-    content: `
-      <h1>Welcome to SyncWrite Collaborative Editor</h1>
-      <p>This is a real-time collaborative document editor. Try opening this URL in another tab!</p>
-    `,
   });
 
+  // Effect to sync Suggesting Mode with Editor
+  useEffect(() => {
+    if (editor) {
+      if (isSuggestingMode) {
+        editor.commands.setTrackChangesMode('suggest');
+      } else {
+        editor.commands.setTrackChangesMode('edit');
+      }
+    }
+  }, [isSuggestingMode, editor]);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f9fbfd', fontFamily: '"Google Sans", Roboto, Arial, sans-serif' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f1f3f4', fontFamily: '"Google Sans", Roboto, Arial, sans-serif' }}>
       {/* Header */}
       <header style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         padding: '8px 16px',
-        background: '#f9fbfd',
+        background: '#f1f3f4',
         zIndex: 10
       }}>
         {/* Left Side: Icon + Title + Menu */}
@@ -196,15 +292,15 @@ const Editor = () => {
         {/* Right Side: Actions + Share + Avatar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
 
-          <button 
-            style={{ background: activeSidebar === 'history' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} 
+          <button
+            style={{ background: activeSidebar === 'history' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }}
             title="Version History"
             onClick={() => setActiveSidebar(activeSidebar === 'history' ? null : 'history')}
           >
             <History size={22} />
           </button>
-          <button 
-            style={{ background: activeSidebar === 'comments' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }} 
+          <button
+            style={{ background: activeSidebar === 'comments' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }}
             title="Comments"
             onClick={() => setActiveSidebar(activeSidebar === 'comments' ? null : 'comments')}
           >
@@ -269,6 +365,44 @@ const Editor = () => {
             </button>
           </div>
 
+          {/* Suggesting Mode Toggle */}
+          <div style={{ display: 'flex', background: isSuggestingMode ? '#e8f0fe' : 'transparent', borderRadius: '4px', padding: '2px' }}>
+            <button 
+              onClick={() => setIsSuggestingMode(!isSuggestingMode)}
+              style={{ background: isSuggestingMode ? '#d3e3fd' : 'transparent', border: 'none', padding: '6px 12px', color: isSuggestingMode ? '#0b57d0' : '#444746', cursor: 'pointer', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}
+              title="Suggesting Mode"
+            >
+              <PenTool size={16} />
+              {isSuggestingMode ? 'Suggesting' : 'Editing'}
+            </button>
+          </div>
+
+          <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', height: '24px', margin: '0 8px' }} />
+
+          {/* Accept / Reject Changes (If any) */}
+          <button 
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (editor) editor.commands.acceptAll();
+            }}
+            style={{ background: 'transparent', border: 'none', padding: '6px', color: '#188038', cursor: 'pointer', borderRadius: '4px' }}
+            title="Accept All Suggestions"
+          >
+            <Check size={18} />
+          </button>
+          <button 
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              if (editor) editor.commands.rejectAll();
+            }}
+            style={{ background: 'transparent', border: 'none', padding: '6px', color: '#d93025', cursor: 'pointer', borderRadius: '4px' }}
+            title="Reject All Suggestions"
+          >
+            <X size={18} />
+          </button>
+
+          <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', height: '24px', margin: '0 8px' }} />
+
           {/* Gemini Icon */}
           <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#1a73e8', cursor: 'pointer', borderRadius: '50%' }}>
             <Sparkles size={22} fill="#1a73e8" />
@@ -303,7 +437,7 @@ const Editor = () => {
             color: '#041e49',
             fontWeight: 'bold',
             border: '2px solid transparent',
-            backgroundImage: 'linear-gradient(#f9fbfd, #f9fbfd), conic-gradient(from 0deg, #ea4335 0deg, #fbbc04 90deg, #34a853 180deg, #4285f4 270deg, #ea4335 360deg)',
+            backgroundImage: 'linear-gradient(#f1f3f4, #f1f3f4), conic-gradient(from 0deg, #ea4335 0deg, #fbbc04 90deg, #34a853 180deg, #4285f4 270deg, #ea4335 360deg)',
             backgroundOrigin: 'border-box',
             backgroundClip: 'content-box, border-box'
           }}>
@@ -313,7 +447,7 @@ const Editor = () => {
       </header>
 
       {/* Toolbar Area (Full Width) */}
-      <Toolbar editor={editor} />
+      <Toolbar editor={editor} zoomLevel={zoomLevel} setZoomLevel={setZoomLevel} />
 
       {/* Editor Main Area */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -321,7 +455,7 @@ const Editor = () => {
         {/* Left Sidebar (Document tabs) */}
         <div style={{
           width: '280px',
-          background: '#f9fbfd',
+          background: '#f1f3f4',
           display: 'flex',
           flexDirection: 'column',
           padding: '12px 16px',
@@ -361,12 +495,12 @@ const Editor = () => {
         </div>
 
         {/* Main Content Area (Ruler + Paper) */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f9fbfd' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f1f3f4' }}>
 
           {/* Mock Ruler */}
           <div style={{
             height: '24px',
-            background: '#f9fbfd',
+            background: '#f1f3f4',
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'flex-end',
@@ -399,20 +533,10 @@ const Editor = () => {
             flexDirection: 'column',
             alignItems: 'center',
             padding: '0px 16px 80px 16px',
-            background: '#f9fbfd',
+            background: '#f1f3f4',
             position: 'relative'
           }}>
-            {/* A4 Paper Look */}
-            <div className="editor-paper" style={{
-              width: '100%',
-              maxWidth: '816px',
-              background: '#ffffff',
-              minHeight: '1056px',
-              padding: '96px',
-              boxShadow: '0 1px 3px 1px rgba(60,64,67,0.15)',
-              color: '#000000',
-              fontFamily: 'Arial, sans-serif'
-            }}>
+            <div style={{ zoom: zoomLevel, transition: 'zoom 0.2s', width: '816px', minHeight: '1056px', marginBottom: '400px' }}>
               <EditorContent editor={editor} className="tiptap-editor" />
             </div>
 
@@ -487,8 +611,8 @@ const Editor = () => {
               <span style={{ fontWeight: 500, color: '#1f1f1f', fontSize: '1rem' }}>
                 {activeSidebar === 'history' ? 'Version history' : 'Comments'}
               </span>
-              <button 
-                className="btn-ghost" 
+              <button
+                className="btn-ghost"
                 style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#5f6368', borderRadius: '50%' }}
                 onClick={() => setActiveSidebar(null)}
               >
@@ -523,14 +647,14 @@ const Editor = () => {
               {activeSidebar === 'comments' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ padding: '12px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
-                    <textarea 
+                    <textarea
                       placeholder="Add a comment..."
                       value={newCommentText}
                       onChange={(e) => setNewCommentText(e.target.value)}
                       style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', resize: 'none', minHeight: '60px', fontFamily: 'inherit', fontSize: '0.9rem' }}
                     />
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-                      <button 
+                      <button
                         onClick={async () => {
                           if (newCommentText.trim()) {
                             const newComment = await addComment(id, user?.name || 'Anonymous', newCommentText);
@@ -555,7 +679,7 @@ const Editor = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1f1f1f' }}>{comment.user.name}</span>
                           {!comment.resolved && (
-                            <button 
+                            <button
                               onClick={async () => {
                                 const updatedComment = await resolveComment(id, comment.id);
                                 if (updatedComment) {
@@ -565,7 +689,7 @@ const Editor = () => {
                                   }));
                                 }
                               }}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#5f6368' }} 
+                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#5f6368' }}
                               title="Mark as resolved">
                               <Check size={16} />
                             </button>
@@ -600,18 +724,43 @@ const Editor = () => {
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
           }} onClick={e => e.stopPropagation()}>
             <h2 style={{ margin: '0 0 16px 0', fontSize: '1.25rem', color: '#1f1f1f' }}>Share "{docTitle}"</h2>
-            
+
             <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-              <input type="email" placeholder="Add people and groups" style={{
-                flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', fontSize: '1rem'
-              }} />
-              <select style={{
-                padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', background: '#f8f9fa', fontSize: '0.9rem'
-              }}>
-                <option value="editor">Editor</option>
-                <option value="commenter">Commenter</option>
-                <option value="viewer">Viewer</option>
+              <input 
+                type="email" 
+                placeholder="Add people and groups" 
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', fontSize: '1rem'
+                }} 
+              />
+              <select 
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value)}
+                style={{
+                  padding: '10px', borderRadius: '4px', border: '1px solid #dadce0', background: '#f8f9fa', fontSize: '0.9rem'
+                }}
+              >
+                <option value="EDITOR">Editor</option>
+                <option value="COMMENTER">Commenter</option>
+                <option value="VIEWER">Viewer</option>
               </select>
+              <button 
+                onClick={handleInvite}
+                disabled={!inviteEmail.trim()}
+                style={{
+                  background: inviteEmail.trim() ? '#1a73e8' : '#dadce0', 
+                  border: 'none', 
+                  borderRadius: '4px', 
+                  padding: '0 16px', 
+                  color: inviteEmail.trim() ? '#fff' : '#80868b', 
+                  fontWeight: 500, 
+                  cursor: inviteEmail.trim() ? 'pointer' : 'default'
+                }}
+              >
+                Send
+              </button>
             </div>
 
             <div style={{ marginBottom: '24px' }}>

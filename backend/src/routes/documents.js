@@ -12,6 +12,7 @@ router.get('/:id', docController.getById);
 router.put('/:id', docController.rename);
 router.delete('/:id', docController.deleteDoc);
 router.post('/:id/duplicate', docController.duplicate);
+router.post('/:id/collaborators', docController.addCollaborator);
 
 // Comments
 router.post('/:id/comments', docController.addComment);

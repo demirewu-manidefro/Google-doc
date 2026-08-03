@@ -3,7 +3,7 @@ const prisma = require('../prisma');
 exports.getAll = async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     // Get documents owned by user
     const owned = await prisma.document.findMany({
       where: { ownerId: userId },
@@ -66,7 +66,7 @@ exports.getById = async (req, res) => {
     });
 
     if (!document) return res.status(404).json({ error: 'Document not found' });
-    
+
     // Authorization check
     if (document.ownerId !== req.user.id && !document.collaborators.some(c => c.userId === req.user.id)) {
       // Return 403 or add them as a viewer (auto-sharing for prototype purposes? Let's auto-add as editor for this challenge if not owner, just to make testing easy, or keep it strict).
@@ -118,6 +118,38 @@ exports.duplicate = async (req, res) => {
       }
     });
     res.json(copy);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.addCollaborator = async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    const documentId = req.params.id;
+
+    const userToAdd = await prisma.user.findUnique({ where: { email } });
+    if (!userToAdd) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const doc = await prisma.document.findUnique({ where: { id: documentId } });
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+    
+    if (doc.ownerId !== req.user.id) {
+       return res.status(403).json({ error: 'Only the owner can add collaborators' });
+    }
+
+    const collab = await prisma.collaborator.upsert({
+      where: {
+        documentId_userId: { documentId, userId: userToAdd.id }
+      },
+      update: { role },
+      create: { documentId, userId: userToAdd.id, role },
+      include: { user: { select: { name: true, email: true } } }
+    });
+
+    res.json(collab);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
