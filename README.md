@@ -18,25 +18,13 @@ SyncWrite is a modern, feature-rich Google Docs clone built with React, Node.js,
 ## 📸 Screenshots
 
 ### Dashboard & Pending Invites
-> *Replace this text with your screenshot*
-<!-- ![Dashboard](/path/to/dashboard.png) -->
+<img width="637" height="418" alt="image" src="https://github.com/user-attachments/assets/b1ba8256-1b6f-4664-b26a-49101ccab5e2" />
+
 
 ### Real-Time Editor & Document Outline
-> *Replace this text with your screenshot*
 <img width="1920" height="928" alt="image" src="https://github.com/user-attachments/assets/81845706-35e5-4e85-b920-e9e2d6ff114e" />
 
 
-### Advanced Dropdown Menus (File, Edit, Download)
-> *Replace this text with your screenshot*
-<!-- ![Menus](/path/to/menus.png) -->
-
-### Share Modal & GitHub-Style Invites
-> *Replace this text with your screenshot*
-<!-- ![Share Modal](/path/to/share-modal.png) -->
-
-### Commenting & Suggesting Mode
-> *Replace this text with your screenshot*
-<!-- ![Comments](/path/to/comments.png) -->
 
 ## 🛠️ Tech Stack
 
