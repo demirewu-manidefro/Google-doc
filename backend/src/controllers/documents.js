@@ -123,6 +123,38 @@ exports.duplicate = async (req, res) => {
   }
 };
 
+exports.addCollaborator = async (req, res) => {
+  try {
+    const { email, role } = req.body;
+    const documentId = req.params.id;
+
+    const userToAdd = await prisma.user.findUnique({ where: { email } });
+    if (!userToAdd) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const doc = await prisma.document.findUnique({ where: { id: documentId } });
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+    
+    if (doc.ownerId !== req.user.id) {
+       return res.status(403).json({ error: 'Only the owner can add collaborators' });
+    }
+
+    const collab = await prisma.collaborator.upsert({
+      where: {
+        documentId_userId: { documentId, userId: userToAdd.id }
+      },
+      update: { role },
+      create: { documentId, userId: userToAdd.id, role },
+      include: { user: { select: { name: true, email: true } } }
+    });
+
+    res.json(collab);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // Comments
 exports.addComment = async (req, res) => {
   try {
