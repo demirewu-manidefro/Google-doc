@@ -29,10 +29,20 @@ function setupYjsWebsockets(server) {
     }
   });
 
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (request, socket, head) => {
+    // Let socket.io handle its own upgrades
+    if (request.url.startsWith('/socket.io/')) {
+      return;
+    }
+    
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  });
 
   wss.on('connection', (conn, req) => {
-    // Check path if needed, e.g. /collaboration
     setupWSConnection(conn, req);
   });
 

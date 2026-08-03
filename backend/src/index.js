@@ -20,9 +20,17 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+app.set('io', io);
+
 // Socket.IO for general notifications/presence (Yjs will use its own WS handling)
 io.on('connection', (socket) => {
   console.log('User connected to Socket.IO', socket.id);
+  
+  socket.on('join_document', (documentId) => {
+    socket.join(documentId);
+    console.log(`Socket ${socket.id} joined document ${documentId}`);
+  });
+  
   socket.on('disconnect', () => {
     console.log('User disconnected', socket.id);
   });

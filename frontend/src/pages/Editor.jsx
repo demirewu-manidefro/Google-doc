@@ -12,11 +12,12 @@ import { FontFamily } from '@tiptap/extension-font-family';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { TrackChangesExtension } from 'tiptap-track-changes';
+import { io } from 'socket.io-client';
 import { api } from '../api';
 import { useAuthStore } from '../store/authStore';
 import { useDocumentStore } from '../store/documentStore';
 import Toolbar from '../components/Toolbar';
-import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cloud, FileText, Lock, Video, Sparkles, ChevronDown, Plus, MoreVertical, FileDown, LayoutTemplate, PenTool, Mail, Sparkles as SparkleIcon, ArrowUp, Link as LinkIcon, X, Check } from 'lucide-react';
+import { ArrowLeft, Share, Save, Users, History, MessageSquare, Star, Folder, Cloud, FileText, Lock, Video, Sparkles, ChevronDown, Plus, MoreVertical, FileDown, LayoutTemplate, PenTool, Mail, Sparkles as SparkleIcon, ArrowUp, Link as LinkIcon, X, Check, Trash2, Send } from 'lucide-react';
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FDFB', '#BFDF8A'];
 const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
@@ -75,6 +76,13 @@ const Editor = () => {
   const [inviteRole, setInviteRole] = useState('EDITOR');
   const [isSuggestingMode, setIsSuggestingMode] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [headings, setHeadings] = useState([]);
+  const [hasUnreadComments, setHasUnreadComments] = useState(false);
+  const [activeTabId, setActiveTabId] = useState('default');
+  const [tabs, setTabs] = useState([]);
+  
+  const activeSidebarRef = useRef(activeSidebar);
+  useEffect(() => { activeSidebarRef.current = activeSidebar; }, [activeSidebar]);
   const userColor = useRef(getRandomColor());
 
   const [ydoc] = useState(() => new Y.Doc());
@@ -123,9 +131,62 @@ const Editor = () => {
       updateTimestamp(id);
     });
 
+    // Document Tabs Sync
+    const tabsMap = ydoc.getMap('documentTabs');
+    const updateTabs = () => {
+      const currentTabs = Array.from(tabsMap.values());
+      if (currentTabs.length === 0) {
+        const defaultTab = { id: 'default', name: 'Tab 1', order: 0 };
+        tabsMap.set('default', defaultTab);
+        setTabs([defaultTab]);
+      } else {
+        setTabs(currentTabs.sort((a, b) => a.order - b.order));
+      }
+    };
+    tabsMap.observe(updateTabs);
+    updateTabs();
+
+
+    // Real-time comments with Socket.IO
+    const socket = io('http://localhost:3001');
+    socket.emit('join_document', id);
+    
+    socket.on('comment_added', (newComment) => {
+      setDocData(prev => {
+        if (!prev) return prev;
+        // avoid duplicating if I am the one who added it (it's added eagerly)
+        if (prev.comments?.some(c => c.id === newComment.id)) return prev;
+        return { ...prev, comments: [newComment, ...(prev.comments || [])] };
+      });
+      if (activeSidebarRef.current !== 'comments') {
+        setHasUnreadComments(true);
+      }
+    });
+    
+    socket.on('comment_resolved', (resolvedComment) => {
+      setDocData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          comments: prev.comments.map(c => c.id === resolvedComment.id ? resolvedComment : c)
+        };
+      });
+    });
+
+    socket.on('comment_deleted', (deletedCommentId) => {
+      setDocData(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          comments: prev.comments.filter(c => c.id !== deletedCommentId)
+        };
+      });
+    });
+
     return () => {
       provider.destroy();
       ydoc.destroy();
+      socket.disconnect();
     };
   }, [id, navigate, updateTimestamp, ydoc, provider, user?.name]);
 
@@ -160,6 +221,7 @@ const Editor = () => {
       }),
       Collaboration.configure({
         document: ydoc,
+        field: activeTabId,
       }),
       CollaborationCaret.configure({
         provider: provider,
@@ -193,7 +255,20 @@ const Editor = () => {
       TextStyle,
       FontFamily,
     ],
-  });
+    onUpdate: ({ editor }) => {
+      const newHeadings = [];
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading') {
+          newHeadings.push({
+            level: node.attrs.level,
+            text: node.textContent,
+            pos
+          });
+        }
+      });
+      setHeadings(newHeadings);
+    },
+  }, [activeTabId, ydoc, provider, user?.name, user?.id]); // Re-initialize editor when tab changes
 
   // Effect to sync Suggesting Mode with Editor
   useEffect(() => {
@@ -261,14 +336,11 @@ const Editor = () => {
                   e.currentTarget.style.border = '1px solid #1f1f1f';
                 }}
               />
-              <button style={{ background: 'transparent', border: 'none', padding: '4px', color: '#444746', cursor: 'pointer', display: 'flex' }}><Star size={16} /></button>
-              <button style={{ background: 'transparent', border: 'none', padding: '4px', color: '#444746', cursor: 'pointer', display: 'flex' }}><Folder size={16} /></button>
-              <button style={{ background: 'transparent', border: 'none', padding: '4px', color: '#444746', cursor: 'pointer', display: 'flex' }}><Cloud size={16} /></button>
             </div>
 
             {/* Menu Row */}
             <div style={{ display: 'flex', gap: '2px', fontSize: '0.875rem', color: '#1f1f1f', marginLeft: '2px' }}>
-              {['File', 'Edit', 'View', 'Insert', 'Format', 'Tools', 'Gemini', 'Extensions', 'Help'].map(menu => (
+              {['File', 'Edit', 'View', 'Insert'].map(menu => (
                 <button
                   key={menu}
                   style={{
@@ -300,22 +372,16 @@ const Editor = () => {
             <History size={22} />
           </button>
           <button
-            style={{ background: activeSidebar === 'comments' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%' }}
+            style={{ background: activeSidebar === 'comments' ? '#e8eaed' : 'transparent', border: 'none', padding: '8px', color: '#444746', cursor: 'pointer', borderRadius: '50%', position: 'relative' }}
             title="Comments"
-            onClick={() => setActiveSidebar(activeSidebar === 'comments' ? null : 'comments')}
+            onClick={() => {
+              setActiveSidebar(activeSidebar === 'comments' ? null : 'comments');
+              setHasUnreadComments(false);
+            }}
           >
             <MessageSquare size={22} />
+            {hasUnreadComments && <div style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, backgroundColor: '#ea4335', borderRadius: '50%' }} />}
           </button>
-
-          {/* Video call with dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', background: 'transparent', borderRadius: '24px', cursor: 'pointer' }}>
-            <button style={{ background: 'transparent', border: 'none', padding: '8px 4px 8px 12px', color: '#444746', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-              <Video size={24} />
-            </button>
-            <button style={{ background: 'transparent', border: 'none', padding: '8px 12px 8px 0', color: '#444746', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-              <ChevronDown size={16} />
-            </button>
-          </div>
 
           {/* Share Button Group */}
           <div style={{
@@ -403,13 +469,6 @@ const Editor = () => {
 
           <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', height: '24px', margin: '0 8px' }} />
 
-          {/* Gemini Icon */}
-          <button style={{ background: 'transparent', border: 'none', padding: '8px', color: '#1a73e8', cursor: 'pointer', borderRadius: '50%' }}>
-            <Sparkles size={22} fill="#1a73e8" />
-          </button>
-
-          <div style={{ width: '1px', background: 'rgba(0,0,0,0.1)', height: '24px', margin: '0 8px' }} />
-
           {/* Active Users Avatars */}
           <div style={{ display: 'flex', alignItems: 'center' }}>
             {activeUsers.map((u, i) => (
@@ -461,17 +520,42 @@ const Editor = () => {
           padding: '12px 16px',
           flexShrink: 0
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', color: '#444746', cursor: 'pointer' }}>
-            <ArrowLeft size={18} />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', color: '#1f1f1f', fontWeight: 500, fontSize: '0.85rem' }}>
+          {/* Document Tabs */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', color: '#1f1f1f', fontWeight: 500, fontSize: '0.85rem' }}>
             Document tabs
-            <Plus size={18} style={{ cursor: 'pointer', color: '#444746' }} />
+            <Plus size={18} style={{ cursor: 'pointer', color: '#444746' }} onClick={() => {
+               const newId = 'tab-' + Date.now();
+               const newOrder = tabs.length;
+               ydoc.getMap('documentTabs').set(newId, { id: newId, name: `Tab ${tabs.length + 1}`, order: newOrder });
+               setActiveTabId(newId);
+            }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '24px' }}>
+            {tabs.map(tab => (
+              <div 
+                key={tab.id}
+                onClick={() => setActiveTabId(tab.id)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '16px',
+                  background: activeTabId === tab.id ? '#c2e7ff' : 'transparent',
+                  color: activeTabId === tab.id ? '#001d35' : '#444746',
+                  fontSize: '0.85rem',
+                  fontWeight: activeTabId === tab.id ? 500 : 400,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <FileText size={16} color={activeTabId === tab.id ? "#0a57d0" : "#444746"} />
+                {tab.name}
+              </div>
+            ))}
           </div>
 
+          {/* Outline Header */}
           <div style={{
-            background: '#c2e7ff',
             color: '#001d35',
             padding: '10px 12px',
             borderRadius: '24px',
@@ -480,17 +564,46 @@ const Editor = () => {
             justifyContent: 'space-between',
             fontSize: '0.875rem',
             fontWeight: 500,
-            cursor: 'pointer',
             marginBottom: '16px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={16} color="#0a57d0" /> Tab 1
+              <FileText size={16} color="#0a57d0" /> Outline
             </div>
-            <MoreVertical size={16} color="#001d35" style={{ cursor: 'pointer' }} />
           </div>
 
-          <div style={{ color: '#444746', fontSize: '0.85rem', fontStyle: 'italic', lineHeight: '1.5' }}>
-            Headings you add to the document will appear here.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '8px' }}>
+            {headings.length > 0 ? (
+              headings.map((h, i) => (
+                <div 
+                  key={i}
+                  onClick={() => {
+                    if (editor) {
+                      editor.commands.setTextSelection(h.pos);
+                      editor.commands.scrollIntoView();
+                    }
+                  }}
+                  style={{
+                    paddingLeft: `${(h.level - 1) * 12}px`,
+                    fontSize: '0.85rem',
+                    color: '#444746',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    lineHeight: '1.5'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#0b57d0'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = '#444746'}
+                  title={h.text}
+                >
+                  {h.text || 'Untitled'}
+                </div>
+              ))
+            ) : (
+              <div style={{ color: '#444746', fontSize: '0.85rem', fontStyle: 'italic', lineHeight: '1.5' }}>
+                Headings you add to the document will appear here.
+              </div>
+            )}
           </div>
         </div>
 
@@ -540,58 +653,7 @@ const Editor = () => {
               <EditorContent editor={editor} className="tiptap-editor" />
             </div>
 
-            {/* Floating Gemini Prompt Bar */}
-            <div style={{
-              position: 'fixed',
-              bottom: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '12px',
-              zIndex: 50
-            }}>
-              {/* Suggestion Chips */}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {[{ icon: FileDown, text: 'Match doc format' }, { icon: LayoutTemplate, text: 'Templates' }, { icon: PenTool, text: 'Meeting notes' }, { icon: Mail, text: 'Email draft' }].map(chip => (
-                  <button key={chip.text} style={{
-                    display: 'flex', alignItems: 'center', gap: '6px',
-                    padding: '6px 12px', background: '#f0f4f9', border: 'none',
-                    borderRadius: '8px', color: '#444746', fontSize: '0.85rem', cursor: 'pointer'
-                  }}>
-                    <chip.icon size={14} /> {chip.text}
-                  </button>
-                ))}
-                <button style={{
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                  padding: '6px 12px', background: '#f0f4f9', border: 'none',
-                  borderRadius: '8px', color: '#444746', fontSize: '0.85rem', cursor: 'pointer'
-                }}>
-                  <Plus size={14} /> More
-                </button>
-              </div>
 
-              {/* Input Bar */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                background: '#ffffff',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
-                borderRadius: '24px',
-                padding: '8px 12px',
-                width: '600px',
-                border: '1px solid #e3e3e3'
-              }}>
-                <SparkleIcon size={20} color="#0a57d0" style={{ margin: '0 8px' }} />
-                <input
-                  type="text"
-                  placeholder="Create an outline for..."
-                  style={{ flex: 1, border: 'none', outline: 'none', fontSize: '0.95rem', color: '#1f1f1f', padding: '4px 8px' }}
-                />
-                <button style={{ background: '#f0f4f9', border: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}>
-                  <ArrowUp size={16} color="#444746" />
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -621,8 +683,8 @@ const Editor = () => {
             </div>
 
             {/* Sidebar Content */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
-              {activeSidebar === 'history' && (
+            {activeSidebar === 'history' && (
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {docData?.history?.length > 0 ? (
                     [...docData.history].reverse().map((entry, idx) => (
@@ -642,72 +704,131 @@ const Editor = () => {
                     <div style={{ color: '#5f6368', fontSize: '0.9rem', textAlign: 'center', marginTop: '20px' }}>No history yet.</div>
                   )}
                 </div>
-              )}
+              </div>
+            )}
 
-              {activeSidebar === 'comments' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ padding: '12px', background: '#f8f9fa', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
-                    <textarea
-                      placeholder="Add a comment..."
-                      value={newCommentText}
-                      onChange={(e) => setNewCommentText(e.target.value)}
-                      style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', resize: 'none', minHeight: '60px', fontFamily: 'inherit', fontSize: '0.9rem' }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
-                      <button
-                        onClick={async () => {
-                          if (newCommentText.trim()) {
-                            const newComment = await addComment(id, user?.name || 'Anonymous', newCommentText);
-                            if (newComment) {
-                              setDocData(prev => ({
-                                ...prev,
-                                comments: [newComment, ...(prev.comments || [])]
-                              }));
-                            }
-                            setNewCommentText('');
-                          }
-                        }}
-                        style={{ background: '#0b57d0', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '4px', fontWeight: 500, cursor: 'pointer', fontSize: '0.85rem' }}>
-                        Comment
-                      </button>
-                    </div>
-                  </div>
-
+            {activeSidebar === 'comments' && (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {/* Chat Messages Area */}
+                <div style={{ 
+                  flex: 1, 
+                  overflowY: 'auto', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '8px', 
+                  padding: '16px', 
+                  backgroundColor: '#e5ddd5', 
+                  backgroundImage: 'url("https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png")',
+                  backgroundSize: '400px',
+                  backgroundBlendMode: 'overlay'
+                }}>
                   {docData?.comments?.length > 0 ? (
-                    docData.comments.map(comment => (
-                      <div key={comment.id} style={{ padding: '12px', border: '1px solid #e0e0e0', borderRadius: '8px', opacity: comment.resolved ? 0.6 : 1, position: 'relative' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#1f1f1f' }}>{comment.user.name}</span>
-                          {!comment.resolved && (
-                            <button
-                              onClick={async () => {
-                                const updatedComment = await resolveComment(id, comment.id);
-                                if (updatedComment) {
-                                  setDocData(prev => ({
-                                    ...prev,
-                                    comments: prev.comments.map(c => c.id === comment.id ? updatedComment : c)
-                                  }));
-                                }
-                              }}
-                              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#5f6368' }}
-                              title="Mark as resolved">
-                              <Check size={16} />
-                            </button>
+                    [...docData.comments].reverse().map((comment, idx, arr) => {
+                      const isMe = user?.name === comment.user.name;
+                      return (
+                        <div key={comment.id} 
+                          ref={el => { if (idx === arr.length - 1 && el) el.scrollIntoView(); }}
+                          style={{
+                          alignSelf: isMe ? 'flex-end' : 'flex-start',
+                          maxWidth: '85%',
+                          backgroundColor: isMe ? '#dcf8c6' : '#ffffff',
+                          borderRadius: '8px',
+                          borderTopRightRadius: isMe ? 0 : '8px',
+                          borderTopLeftRadius: isMe ? '8px' : 0,
+                          padding: '6px 8px',
+                          boxShadow: '0 1px 1px rgba(0,0,0,0.1)',
+                          position: 'relative',
+                          opacity: comment.resolved ? 0.6 : 1,
+                          display: 'flex',
+                          flexDirection: 'column'
+                        }}>
+                          {!isMe && (
+                            <div style={{ fontWeight: 600, fontSize: '0.75rem', color: '#00a884', marginBottom: '2px' }}>
+                              {comment.user.name}
+                            </div>
                           )}
+                          <div style={{ fontSize: '0.85rem', color: '#111b21', marginBottom: '4px', paddingRight: '40px', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                            {comment.text}
+                          </div>
+                          
+                          <div style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', color: '#667781', marginTop: '-12px', marginRight: '-2px' }}>
+                            {comment.resolved && <span style={{ color: '#188038', fontWeight: 600 }}>Resolved</span>}
+                            <span>{new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            {!comment.resolved && (
+                              <button
+                                onClick={async () => {
+                                  const updatedComment = await resolveComment(id, comment.id);
+                                  if (updatedComment) {
+                                    setDocData(prev => ({
+                                      ...prev,
+                                      comments: prev.comments.map(c => c.id === comment.id ? updatedComment : c)
+                                    }));
+                                  }
+                                }}
+                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color: '#667781' }}
+                                title="Mark as resolved">
+                                <Check size={12} />
+                              </button>
+                            )}
+                            {(isMe || user?.id === docData.ownerId) && (
+                              <button
+                                onClick={async () => {
+                                  const success = await useDocumentStore.getState().deleteComment(id, comment.id);
+                                  if (success) {
+                                    setDocData(prev => ({
+                                      ...prev,
+                                      comments: prev.comments.filter(c => c.id !== comment.id)
+                                    }));
+                                  }
+                                }}
+                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color: '#ea4335' }}
+                                title="Delete comment">
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.9rem', color: '#3c4043', marginBottom: '8px' }}>{comment.text}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#5f6368' }}>{new Date(comment.createdAt).toLocaleDateString()}</div>
-                        {comment.resolved && (
-                          <div style={{ position: 'absolute', top: '12px', right: '12px', color: '#188038', fontSize: '0.75rem', fontWeight: 500 }}>Resolved</div>
-                        )}
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
-                    <div style={{ color: '#5f6368', fontSize: '0.9rem', textAlign: 'center', marginTop: '20px' }}>No comments yet.</div>
+                    <div style={{ color: '#5f6368', fontSize: '0.85rem', textAlign: 'center', marginTop: '20px', background: 'rgba(255,255,255,0.9)', padding: '6px 12px', borderRadius: '16px', alignSelf: 'center', boxShadow: '0 1px 1px rgba(0,0,0,0.05)' }}>No comments yet.</div>
                   )}
                 </div>
-              )}
-            </div>
+                
+                {/* Chat Input */}
+                <div style={{ padding: '10px 12px', background: '#f0f0f0', display: 'flex', gap: '8px', alignItems: 'flex-end', borderTop: '1px solid #d1d7db' }}>
+                  <textarea
+                    placeholder="Type a message..."
+                    value={newCommentText}
+                    onChange={(e) => setNewCommentText(e.target.value)}
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (newCommentText.trim()) {
+                          const textToSend = newCommentText;
+                          setNewCommentText(''); // clear immediately for better UX
+                          await addComment(id, user?.name || 'Anonymous', textToSend);
+                          // State update is handled by the Socket.IO 'comment_added' listener
+                        }
+                      }
+                    }}
+                    style={{ flex: 1, border: 'none', background: '#fff', outline: 'none', resize: 'none', minHeight: '40px', maxHeight: '120px', borderRadius: '20px', padding: '10px 16px', fontFamily: 'inherit', fontSize: '0.9rem', boxShadow: '0 1px 1px rgba(0,0,0,0.05)' }}
+                  />
+                  <button
+                    onClick={async () => {
+                      if (newCommentText.trim()) {
+                        const textToSend = newCommentText;
+                        setNewCommentText('');
+                        await addComment(id, user?.name || 'Anonymous', textToSend);
+                        // State update is handled by the Socket.IO 'comment_added' listener
+                      }
+                    }}
+                    style={{ background: '#00a884', color: '#fff', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, boxShadow: '0 1px 1px rgba(0,0,0,0.1)' }}>
+                    <Send size={18} style={{ transform: 'translateX(-1px)' }} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
