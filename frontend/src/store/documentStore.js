@@ -4,11 +4,12 @@ import { api } from '../api';
 export const useDocumentStore = create((set, get) => ({
   documents: [],
   sharedDocuments: [],
+  pendingDocuments: [],
   
   fetchDocuments: async () => {
     try {
       const data = await api.get('/documents');
-      set({ documents: data.owned, sharedDocuments: data.shared });
+      set({ documents: data.owned, sharedDocuments: data.shared, pendingDocuments: data.pending });
     } catch (e) {
       console.error(e);
     }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Plus, Search, FileText, MoreVertical, LogOut, Menu, LayoutGrid } from 'lucide-react';
+import { Plus, Search, FileText, MoreVertical, LogOut, Menu, LayoutGrid, ShieldAlert } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 import { useDocumentStore } from '../store/documentStore';
@@ -13,7 +13,7 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('recent'); // 'recent', 'owned', 'shared'
 
-  const { documents, sharedDocuments, fetchDocuments, createDocument, deleteDocument, renameDocument, duplicateDocument } = useDocumentStore();
+  const { documents, sharedDocuments, pendingDocuments, fetchDocuments, createDocument, deleteDocument, renameDocument, duplicateDocument } = useDocumentStore();
   const [activeMenu, setActiveMenu] = useState(null); // id of doc with active menu
   const [profileMenu, setProfileMenu] = useState(false);
 
@@ -167,6 +167,27 @@ const Dashboard = () => {
                 </div>
                 <hr style={{ border: 'none', borderTop: '1px solid #e0e0e0', margin: '12px 0' }} />
                 <button
+                  onClick={() => navigate('/settings')}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    background: '#fff',
+                    border: '1px solid #dadce0',
+                    borderRadius: '4px',
+                    color: '#3c4043',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <ShieldAlert size={18} />
+                  Security & Sessions
+                </button>
+                <button
                   onClick={handleLogout}
                   style={{
                     width: '100%',
@@ -224,6 +245,36 @@ const Dashboard = () => {
                 </button>
                 <span style={{ fontSize: '0.9rem', color: '#202124', fontWeight: 500, paddingLeft: '4px' }}>Blank document</span>
               </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Pending Invites Section */}
+      {!searchQuery && pendingDocuments && pendingDocuments.length > 0 && (
+        <section style={{ backgroundColor: '#fff', padding: '32px 0 0 0' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <span style={{ fontSize: '1rem', color: '#d93025', fontWeight: 500 }}>Pending Invites ({pendingDocuments.length})</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {pendingDocuments.map(doc => (
+                <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', border: '1px solid #dadce0', borderRadius: '4px', background: '#fce8e6' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                     <FileText size={24} fill="#ea4335" stroke="white" />
+                     <div>
+                       <div style={{ fontWeight: 500, color: '#202124' }}>{doc.title}</div>
+                       <div style={{ fontSize: '0.85rem', color: '#5f6368' }}>Invited by {doc.owner?.name}</div>
+                     </div>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/accept-invite/${doc.id}`)}
+                    style={{ background: '#1a73e8', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}
+                  >
+                    View Invite
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </section>

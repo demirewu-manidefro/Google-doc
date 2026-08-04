@@ -13,6 +13,7 @@ router.put('/:id', docController.rename);
 router.delete('/:id', docController.deleteDoc);
 router.post('/:id/duplicate', docController.duplicate);
 router.post('/:id/collaborators', docController.addCollaborator);
+router.post('/:id/accept-invite', docController.acceptInvite);
 
 // Comments
 router.post('/:id/comments', docController.addComment);

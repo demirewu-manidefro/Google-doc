@@ -19,6 +19,21 @@ model User {
   collaborators Collaborator[]
   comments      Comment[]
   history       DocumentHistory[]
+  sessions      Session[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique // Store a hashed version ideally, or just the token string if you want to keep it simple
+  ipAddress    String?
+  userAgent    String?
+  isSuspicious Boolean  @default(false)
+  isRevoked    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  expiresAt    DateTime
 }
 
 model Document {
@@ -40,14 +55,20 @@ enum Role {
   EDITOR
 }
 
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+}
+
 model Collaborator {
   id         String   @id @default(uuid())
   documentId String
   userId     String
-  role       Role     @default(VIEWER)
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  addedAt    DateTime @default(now())
+  role       Role         @default(VIEWER)
+  status     InviteStatus @default(PENDING)
+  document   Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedAt    DateTime     @default(now())
 
   @@unique([documentId, userId])
 }
