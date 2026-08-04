@@ -17,8 +17,13 @@ const io = new Server(server, {
 });
 
 // Middleware
-app.use(cors());
+const cookieParser = require('cookie-parser');
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 app.set('io', io);
 
