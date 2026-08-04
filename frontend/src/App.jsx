@@ -4,6 +4,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Editor from './pages/Editor';
 import AcceptInvite from './pages/AcceptInvite';
+import Settings from './pages/Settings';
 import { useAuthStore } from './store/authStore';
 import { useEffect } from 'react';
 
@@ -52,6 +53,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AcceptInvite />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings" 
+          element={
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           } 
         />

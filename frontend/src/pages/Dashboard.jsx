@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Plus, Search, FileText, MoreVertical, LogOut, Menu, LayoutGrid } from 'lucide-react';
+import { Plus, Search, FileText, MoreVertical, LogOut, Menu, LayoutGrid, ShieldAlert } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 import { useDocumentStore } from '../store/documentStore';
@@ -166,6 +166,27 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <hr style={{ border: 'none', borderTop: '1px solid #e0e0e0', margin: '12px 0' }} />
+                <button
+                  onClick={() => navigate('/settings')}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    background: '#fff',
+                    border: '1px solid #dadce0',
+                    borderRadius: '4px',
+                    color: '#3c4043',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <ShieldAlert size={18} />
+                  Security & Sessions
+                </button>
                 <button
                   onClick={handleLogout}
                   style={{
